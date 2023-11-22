@@ -8,6 +8,7 @@ __pycache__/
 *$py.class
 
 # Python test files (for personal testing)
+test.py
 
 # Compressed data folders
 *.zip
