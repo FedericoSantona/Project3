@@ -10,8 +10,9 @@ __pycache__/
 # Python test files (for personal testing)
 test.py
 
-# Compressed data folders
+# Compressed data archive and its contents
 *.zip
+dataset/
 
 # C extensions
 *.so
