@@ -22,8 +22,8 @@ import matplotlib.pyplot as plt
         """
 
 # Path to the zip file and extraction directory
-zip_path = r'C:\Users\aalst\git_repos\FYS-STK4155-Projects\Project3\archive.zip'
-extraction_path = r'C:\Users\aalst\git_repos\FYS-STK4155-Projects\Project3\dataset'
+zip_path = r"C:\Users\sanfe\OneDrive\Desktop\Machine Learning\Project 3\archive.zip"
+extraction_path = r"C:\Users\sanfe\OneDrive\Desktop\Machine Learning\Project 3\dataset"
 
 # Unzip the dataset if it hasn't already been extracted to extraction_path
 if not os.listdir(extraction_path):
