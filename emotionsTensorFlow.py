@@ -43,8 +43,8 @@ Parameters to tune:
         """
 
 # Path to the zip file and extraction directory
-zip_path = r'C:\Users\annar\OneDrive\Desktop\FYS-STK3155\Project3\archive.zip'
-extraction_path = r'C:\Users\annar\OneDrive\Desktop\FYS-STK3155\Project3\dataset'
+zip_path = r"C:\Users\sanfe\OneDrive\Desktop\Machine Learning\Project 3\archive.zip"
+extraction_path = r"C:\Users\sanfe\OneDrive\Desktop\Machine Learning\Project 3\dataset"
 
 # Unzip the dataset
 with zipfile.ZipFile(zip_path, 'r') as zip_ref:
@@ -155,42 +155,41 @@ t_test = t_test_balanced
 
 
 num_classes = 7
-lambda_val = 0.00001
+lambda_val = 0.0001
 
 model = models.Sequential()
 
 # Convolutional Layer 1
-model.add(layers.Conv2D(1, (3, 4),
+model.add(layers.Conv2D(32, (3, 3),
                          activation='relu',
                            input_shape=(img_width, img_width, 1)))
-
 # Max Pooling Layer 1
-#model.add(layers.MaxPooling2D((2, 2)))
+model.add(layers.MaxPooling2D((2, 2)))
 
 # Convolutional Layer 2
-model.add(layers.Conv2D(1, (3, 4)
+model.add(layers.Conv2D(64, (3, 3)
                         , activation='relu'))
 
 # Max Pooling Layer 2
-#model.add(layers.MaxPooling2D((2, 2)))
+model.add(layers.MaxPooling2D((2, 2)))
 
 # Convolutional Layer 3
-#model.add(layers.Conv2D(64, (3, 3)
- #                       , activation='relu'))
+model.add(layers.Conv2D(64, (3, 3)
+                        , activation='relu'))
 
 # Max Pooling Layer 3
-#model.add(layers.MaxPooling2D((2, 2)))
-#model.add(layers.Dropout(0.3))
+model.add(layers.MaxPooling2D((2, 2)))
+model.add(layers.Dropout(0.5))
+
 
 # Flattening Layer
 model.add(layers.Flatten())
 
 # Fully Connected Layer 1 with L2 Regularization
-model.add(layers.Dense(30, activation='relu', kernel_regularizer=regularizers.l2(lambda_val)))
-#model.add(layers.Dropout(0.5))
+model.add(layers.Dense(64, activation='relu', kernel_regularizer=regularizers.l2(lambda_val)))
 
 # Fully Connected Layer 2 with L2 Regularization
-model.add(layers.Dense(20, activation='relu', kernel_regularizer=regularizers.l2(lambda_val)))
+model.add(layers.Dense(64, activation='relu', kernel_regularizer=regularizers.l2(lambda_val)))
 
 # Output Layer
 model.add(layers.Dense(num_classes, activation='softmax'))
@@ -198,9 +197,8 @@ model.add(layers.Dense(num_classes, activation='softmax'))
 #display model architecture
 model.summary()
 
-
 # Set your desired learning rate
-learning_rate = 0.1  # Example learning rate
+learning_rate = 0.001  # Example learning rate
 
 # Instantiate an Adam optimizer with the desired learning rate
 adam_optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
@@ -212,7 +210,7 @@ model.compile(optimizer=adam_optimizer,
 
 # Define the checkpoint callback
 checkpoint_callback = ModelCheckpoint(
-    filepath=r"C:\Users\annar\OneDrive\Desktop\FYS-STK3155\Project3\best_model.pth",
+    filepath=r"best_model.pth",
     monitor="val_accuracy",
     verbose=0,
     save_best_only=True, 
