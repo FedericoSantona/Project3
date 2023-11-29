@@ -45,17 +45,17 @@ def tensorflow_model(x_train, t_train, x_test, t_test, batch_size=64, epochs=10,
 
     # Initialize CNN model
     model = tfk.Sequential([
-        tfk.layers.Conv2D(32, (3, 3), activation="relu", input_shape=(48, 48, 1)),
-        tfk.layers.MaxPooling2D((2, 2)),
-        tfk.layers.Conv2D(64, (3, 3), activation="relu"),
-        tfk.layers.MaxPooling2D((2, 2)),
-        tfk.layers.Conv2D(64, (3, 3), activation="relu"),
-        tfk.layers.MaxPooling2D((2, 2)),
-        tfk.layers.Dropout(0.3),
-        tfk.layers.Flatten(),
-        tfk.layers.Dense(64, activation="relu", kernel_regularizer=tfk.regularizers.l2(l2_lambda), name="xgboost_input"),
-        tfk.layers.Dense(7, activation="relu", kernel_regularizer=tfk.regularizers.l2(l2_lambda)),
-        tfk.layers.Dense(n_classes, activation="softmax")
+        tfk.layers.Conv2D(32, (3, 3), activation="relu", input_shape=(48, 48, 1), name="conv2d_1"),
+        tfk.layers.MaxPooling2D((2, 2), name="maxpooling_1"),
+        tfk.layers.Conv2D(64, (3, 3), activation="relu", name="conv2d_2"),
+        tfk.layers.MaxPooling2D((2, 2), name="maxpooling_2"),
+        tfk.layers.Conv2D(64, (3, 3), activation="relu", name="conv2d_3"),
+        tfk.layers.MaxPooling2D((2, 2), name="maxpooling_3"),
+        tfk.layers.Dropout(0.3, name="dropout_1"),
+        tfk.layers.Flatten(name="flatten_1"),
+        tfk.layers.Dense(64, activation="relu", kernel_regularizer=tfk.regularizers.l2(l2_lambda), name="dense_1"),
+        tfk.layers.Dense(7, activation="relu", kernel_regularizer=tfk.regularizers.l2(l2_lambda), name="dense_2"),
+        tfk.layers.Dense(n_classes, activation="softmax", name="output")
     ])
 
     # Compile the model
@@ -88,8 +88,7 @@ def tensorflow_model(x_train, t_train, x_test, t_test, batch_size=64, epochs=10,
 
     return model, history
 
-def main():
-
+def initialize_data():
     # Load the dataset from the dataset folder
     train_dataset = tfk.preprocessing.image_dataset_from_directory(
         "dataset/train",
@@ -134,6 +133,56 @@ def main():
     x_test = np.concatenate(x_test_list, axis=0)
     t_test = np.concatenate(t_test_list, axis=0)
 
+    return x_train, t_train, x_test, t_test
+
+def view_image_through_cnn_layers(model, image):
+    # Get the layer names
+    layer_names = [layer.name for layer in model.layers]
+
+    # Create a model that outputs the activation values for the layers we want to visualize
+    layer_outputs = [layer.output for layer in model.layers[1:4]]
+    activation_model = tfk.models.Model(inputs=model.input, outputs=layer_outputs)
+
+    print([layer.name for layer in activation_model.layers])
+
+    # # Get the activations for the image
+    # activations = activation_model.predict(image)
+
+    # # Visualize the activations
+    # images_per_row = 16
+    # for layer_name, layer_activation in zip(layer_names, activations):
+    #     # Number of features in the feature map
+    #     n_features = layer_activation.shape[-1]
+
+    #     # The feature map has shape (1, size, size, n_features)
+    #     size = layer_activation.shape[1]
+
+    #     # Tiles the activation channels in this matrix
+    #     n_cols = n_features // images_per_row
+    #     display_grid = np.zeros((size * n_cols, images_per_row * size))
+
+    #     # Tiles each filter into a big horizontal grid
+    #     for col in range(n_cols):
+    #         for row in range(images_per_row):
+    #             channel_image = layer_activation[0, :, :, col * images_per_row + row]
+    #             # Post-process the feature to make it visually palatable
+    #             channel_image -= channel_image.mean()
+    #             channel_image /= channel_image.std()
+    #             channel_image *= 64
+    #             channel_image += 128
+    #             channel_image = np.clip(channel_image, 0, 255).astype("uint8")
+    #             display_grid[col * size : (col + 1) * size, row * size : (row + 1) * size] = channel_image
+
+    #     # Display the grid
+    #     scale = 1. / size
+    #     plt.figure(figsize=(scale * display_grid.shape[1], scale * display_grid.shape[0]))
+    #     plt.title(layer_name)
+    #     plt.grid(False)
+    #     plt.imshow(display_grid, aspect="auto", cmap="viridis")
+    # plt.show()
+
+
+def downscale():
     # Reshape the data for XGBoost without CNN
     downscale_factor = 6
     x_train_downscaled = np.array([cv2.resize(image, (48//downscale_factor, 48//downscale_factor), interpolation=cv2.INTER_AREA) for image in x_train])
@@ -141,6 +190,9 @@ def main():
     x_train_downscaled = x_train_downscaled.reshape((x_train_downscaled.shape[0], x_train_downscaled.shape[1]**2))
     x_test_downscaled  = x_test_downscaled.reshape((x_test_downscaled.shape[0], x_test_downscaled.shape[1]**2))
 
+    return x_train_downscaled, x_test_downscaled
+
+def main():
     # One-hot encode the labels
     encoder = OneHotEncoder()
     t_train_onehot = encoder.fit_transform(t_train.reshape(-1, 1)).toarray()
@@ -152,7 +204,7 @@ def main():
 
     # Initialize the xgboost model
     xgboost_layer_model = tfk.models.Model(inputs=tf_model.input, 
-                                           outputs=tf_model.get_layer("xgboost_input").output)
+                                           outputs=tf_model.get_layer("dense_1").output)
     xgboost_layer_output_train = xgboost_layer_model.predict(x_train)
     xgboost_layer_output_test = xgboost_layer_model.predict(x_test)
 
@@ -196,7 +248,6 @@ def main():
     plt.show()
 
 if __name__ == "__main__":
-
     # Parameters and variables
     seed = 42
     learning_rate = 0.001
@@ -206,4 +257,9 @@ if __name__ == "__main__":
     labels = ["angry", "disgust", "fear", "happy", "neutral", "sad", "surprise"]
     n_classes = len(labels)
 
+    # Initialize the data
+    x_train, t_train, x_test, t_test = initialize_data()
+    x_train_downscaled, x_test_downscaled = downscale()
+
+    # Run
     main()
