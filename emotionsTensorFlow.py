@@ -87,13 +87,18 @@ train_dataset = train_dataset.map(lambda x, y: (preprocessing_model(x), y))
 test_dataset = test_dataset.map(lambda x, y: (preprocessing_model(x), y))
 
 # Obtain labels for all images in the dataset
-all_labels = np.concatenate([y for x, y in train_dataset], axis=0)
-all_images = np.concatenate([x for x, y in train_dataset], axis=0)
+train_labels = np.concatenate([y for x, y in train_dataset], axis=0)
+train_images = np.concatenate([x for x, y in train_dataset], axis=0)
+test_labels = np.concatenate([y for x, y in test_dataset], axis=0)
+test_images = np.concatenate([x for x, y in test_dataset], axis=0)
 
 # Determine the least represented class
-class_counts = np.sum(all_labels, axis=0)
+class_counts = np.sum(train_labels, axis=0)
 least_represented_class = np.argmin(class_counts)
 num_samples = int(class_counts[least_represented_class])
+class_counts_test = np.sum(test_labels, axis=0)
+test_least_represented_class = np.argmin(class_counts_test)
+test_num_samples = int(class_counts_test[test_least_represented_class])
 
 # Function to balance classes
 def balance_classes(images, labels, num_samples):
@@ -115,9 +120,9 @@ def balance_classes(images, labels, num_samples):
 
     return np.array(balanced_images), np.array(balanced_labels)
 
-# Balance the training   dataset
-x_train_balanced, t_train_balanced = balance_classes(all_images, all_labels, num_samples)
-x_test_balanced, t_test_balanced = balance_classes(all_images, all_labels, num_samples)
+# Balance the training dataset
+x_train_balanced, t_train_balanced = balance_classes(train_images, train_labels, num_samples)
+x_test_balanced, t_test_balanced = balance_classes(test_images, test_labels, test_num_samples)
 
 
 # Shuffle the balanced dataset
