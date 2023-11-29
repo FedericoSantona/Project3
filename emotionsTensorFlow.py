@@ -122,18 +122,18 @@ def balance_classes(images, labels, num_samples):
 
 # Balance the training dataset
 x_train_balanced, t_train_balanced = balance_classes(train_images, train_labels, num_samples)
-x_test_balanced, t_test_balanced = balance_classes(test_images, test_labels, test_num_samples)
+#x_test_balanced, t_test_balanced = balance_classes(test_images, test_labels, test_num_samples)
 
 
 # Shuffle the balanced dataset
 x_train_balanced, t_train_balanced = shuffle(x_train_balanced, t_train_balanced, random_state=0)
-x_test_balanced, t_test_balanced = shuffle(x_test_balanced, t_test_balanced, random_state=0)
+#x_test_balanced, t_test_balanced = shuffle(x_test_balanced, t_test_balanced, random_state=0)
 
 # Print shapes of the balanced dataset
 print("Balanced x_train shape:", x_train_balanced.shape)
 print("Balanced t_train shape:", t_train_balanced.shape)
-print("Balanced x_test shape:", x_test_balanced.shape)
-print("Balanced t_test shape:", t_test_balanced.shape)
+print("Balanced x_test shape:", test_images.shape)
+print("Balanced t_test shape:", test_labels.shape)
 
 
 # Assuming t_train_balanced is your balanced label array and is one-hot encoded
@@ -155,8 +155,8 @@ plt.show()
 
 x_train = x_train_balanced
 t_train = t_train_balanced
-x_test = x_test_balanced
-t_test = t_test_balanced
+x_test = test_images
+t_test = test_labels
 
 
 num_classes = 7
