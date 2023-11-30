@@ -1,6 +1,7 @@
 import numpy as np
 from collections import defaultdict
 import matplotlib.pyplot as plt
+import seaborn as sns
 from tensorflow import keras as tfk
 from tensorflow.keras.callbacks import ModelCheckpoint
 from tensorflow.keras.models import load_model
@@ -34,7 +35,7 @@ def xgboost_model(x_train, t_train, x_test, t_test, max_depth=10, eta=0.3, num_c
 
     return model
 
-def tensorflow_model(x_train, t_train, x_test, t_test, batch_size=64, epochs=10, eta = 0.0001, save_results = False):
+def tensorflow_model(x_train, t_train, x_test, t_test, batch_size=64, epochs=10, eta = 0.0001, l2_lambda = 0.0001, save_results = False):
     # Set the seed
     tfk.utils.set_random_seed(seed)
 
@@ -185,7 +186,7 @@ def initialize_data() -> tuple:
 
     # Balance the classes
     x_train, t_train = balance_classes(x_train, t_train, target_num_images, augmentation_datagen)
-    x_test, t_test = balance_classes(x_test, t_test, target_num_images, augmentation_datagen)
+    # x_test, t_test = balance_classes(x_test, t_test, target_num_images, augmentation_datagen)
 
     # Shuffle the data
     x_train, t_train = shuffle(x_train, t_train, random_state=seed)
@@ -267,6 +268,48 @@ def plot_dataset_balance(labels):
     plt.xticks(categories)
     plt.show()
 
+def grid_search_eta_lambda(n_epochs):
+    # Grid search for the best eta and lambda
+    etas = [0.0001, 0.001, 0.01, 0.1]
+    lambdas = [0.0001, 0.001, 0.01, 0.1]
+
+    # Run the grid search and calculate the accuracy and loss scores
+    accuracy_scores = np.zeros((len(etas), len(lambdas)))
+    loss_scores = np.zeros((len(etas), len(lambdas)))
+    for i, eta in enumerate(etas):
+        for j, l2_lambda in enumerate(lambdas):
+            tf_model, tf_history = tensorflow_model(x_train, t_train, x_test, t_test, eta = eta, l2_lambda=l2_lambda, batch_size=batch_size, epochs=n_epochs, save_results=False)
+            cnn_predict = tf_model.predict(x_test)
+            cnn_accuracy = tf_history.history["val_accuracy"][-1]
+            cnn_loss = tf_history.history["val_loss"][-1]
+            accuracy_scores[i, j] = cnn_accuracy
+            loss_scores[i, j] = cnn_loss
+    
+    # Plot heatmaps for the accuracy and loss scores
+    fig, ax = plt.subplots(figsize=(10, 10))
+    sns.heatmap(accuracy_scores, annot=True, ax=ax, cmap="viridis", fmt=".3f")
+    ax.set_xlabel("Lambda", fontsize=16)
+    ax.set_ylabel("Eta", fontsize=16)
+    plt.tick_params(axis='both', which='major', labelsize=14)
+    ax.set_xticklabels(lambdas)
+    ax.set_yticklabels(etas)
+    plt.title("Accuracy for Different Eta and Lambda Values", fontsize=20)
+    cbar = ax.collections[0].colorbar
+    cbar.ax.tick_params(labelsize=14)
+    plt.show()
+
+    fig, ax = plt.subplots(figsize=(10, 10))
+    sns.heatmap(loss_scores, annot=True, ax=ax, cmap="viridis", fmt=".3f")
+    ax.set_xlabel("Lambda", fontsize=16)
+    ax.set_ylabel("Eta", fontsize=16)
+    plt.tick_params(axis='both', which='major', labelsize=14)
+    ax.set_xticklabels(lambdas)
+    ax.set_yticklabels(etas)
+    plt.title("Loss for Different Eta and Lambda Values", fontsize=20)
+    cbar = ax.collections[0].colorbar
+    cbar.ax.tick_params(labelsize=14)
+    plt.show()
+
 def main():
     # One-hot encode the labels
     encoder = OneHotEncoder()
@@ -274,11 +317,11 @@ def main():
     t_test_onehot = encoder.fit_transform(t_test.reshape(-1, 1)).toarray()
 
     # Load the CNN model and predict
-    tf_model, tf_history = tensorflow_model(x_train, t_train, x_test, t_test, eta = learning_rate, batch_size=batch_size, epochs=n_epochs, save_results=False)
+    tf_model, tf_history = tensorflow_model(x_train, t_train, x_test, t_test, eta = learning_rate, l2_lambda=l2_lambda, batch_size=batch_size, epochs=n_epochs, save_results=False)
     cnn_predict = tf_model.predict(x_test)
 
     # View an image through the CNN layers
-    view_image_through_cnn_layers(tf_model, x_test[0])
+    # view_image_through_cnn_layers(tf_model, x_test[0])
 
     # Initialize the xgboost model
     xgboost_layer_model = tfk.models.Model(inputs=tf_model.input, 
@@ -329,21 +372,19 @@ def main():
 if __name__ == "__main__":
     # Parameters and variables
     seed = 42
-    learning_rate = 0.001
+    learning_rate = 0.0001
     l2_lambda = 0.001
-    n_epochs = 5
+    n_epochs = 100
     batch_size = 32
     target_num_images = 1000  # Set your target number of images per category
-
-
     labels = ["angry", "disgust", "fear", "happy", "neutral", "sad", "surprise"]
     n_classes = len(labels)
 
     # Initialize the data
     x_train, t_train, x_test, t_test = initialize_data()
-    x_train_downscaled, x_test_downscaled = downscale()     # For XGBoost without CNN
+    # x_train_downscaled, x_test_downscaled = downscale()     # For XGBoost without CNN
 
     # Run
-    print(t_train.shape)
-    plot_dataset_balance(t_train)
+    # plot_dataset_balance(t_train)
+    grid_search_eta_lambda(n_epochs)
     # main()
