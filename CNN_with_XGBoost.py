@@ -185,12 +185,12 @@ def initialize_data() -> tuple:
     t_test = np.concatenate(t_test_list, axis=0)
 
     # Balance the classes
-    x_train, t_train = balance_classes(x_train, t_train, target_num_images, augmentation_datagen)
+    # x_train, t_train = balance_classes(x_train, t_train, target_num_images, augmentation_datagen)
     # x_test, t_test = balance_classes(x_test, t_test, target_num_images, augmentation_datagen)
 
     # Shuffle the data
-    x_train, t_train = shuffle(x_train, t_train, random_state=seed)
-    x_test, t_test = shuffle(x_test, t_test, random_state=seed)
+    # x_train, t_train = shuffle(x_train, t_train, random_state=seed)
+    # x_test, t_test = shuffle(x_test, t_test, random_state=seed)
 
     return x_train, t_train, x_test, t_test
 
@@ -382,7 +382,7 @@ if __name__ == "__main__":
 
     # Initialize the data
     x_train, t_train, x_test, t_test = initialize_data()
-    # x_train_downscaled, x_test_downscaled = downscale()     # For XGBoost without CNN
+    x_train_downscaled, x_test_downscaled = downscale()     # For XGBoost without CNN
 
     # Run
     # plot_dataset_balance(t_train)
