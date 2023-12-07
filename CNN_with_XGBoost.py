@@ -35,7 +35,10 @@ def xgboost_model(x_train, t_train, x_test, t_test, max_depth=10, eta=0.3, num_c
 
     return model
 
-def tensorflow_model(x_train, t_train, x_test, t_test, batch_size=64, epochs=10, eta = 0.0001, l2_lambda = 0.0001, save_results = False):
+def tensorflow_model(x_train, t_train, x_test, t_test, 
+                     batch_size=64, epochs=10, 
+                     eta = 0.0001, l2_lambda = 0.0001, 
+                     save_results = False, summary = False):
     # Set the seed
     tfk.utils.set_random_seed(seed)
 
@@ -69,20 +72,24 @@ def tensorflow_model(x_train, t_train, x_test, t_test, batch_size=64, epochs=10,
         options=None,
         initial_value_threshold=None
     )
-    # Train the model
-    history = model.fit(
-        x_train, t_train,
-        batch_size=batch_size,
-        epochs=epochs,
-        validation_data=(x_test, t_test),
-        callbacks=[checkpoint_callback]  # Put the callback inside a list
-    )
 
-    if save_results:
-        # Save the model
-        model.save("model.h5")
-
-    return model, history
+    
+    if summary:
+        # Print the model summary
+        model.summary()
+    else:
+        # Train the model
+        history = model.fit(
+            x_train, t_train,
+            batch_size=batch_size,
+            epochs=epochs,
+            validation_data=(x_test, t_test),
+            callbacks=[checkpoint_callback]  # Put the callback inside a list
+        )
+        if save_results:
+            # Save the model
+            model.save("model.h5")
+        return model, history
 
 def augment_images(image, augmentation_datagen, aug_count) -> list:
     augmented_images = []
@@ -278,7 +285,9 @@ def grid_search_eta_lambda(n_epochs):
     loss_scores = np.zeros((len(etas), len(lambdas)))
     for i, eta in enumerate(etas):
         for j, l2_lambda in enumerate(lambdas):
-            tf_model, tf_history = tensorflow_model(x_train, t_train, x_test, t_test, eta = eta, l2_lambda=l2_lambda, batch_size=batch_size, epochs=n_epochs, save_results=False)
+            tf_model, tf_history = tensorflow_model(x_train, t_train, x_test, t_test, 
+                                                    eta = eta, l2_lambda=l2_lambda, batch_size=batch_size, epochs=n_epochs, 
+                                                    save_results=False, summary=False)
             cnn_predict = tf_model.predict(x_test)
             cnn_accuracy = tf_history.history["val_accuracy"][-1]
             cnn_loss = tf_history.history["val_loss"][-1]
@@ -317,7 +326,8 @@ def main():
     t_test_onehot = encoder.fit_transform(t_test.reshape(-1, 1)).toarray()
 
     # Load the CNN model and predict
-    tf_model, tf_history = tensorflow_model(x_train, t_train, x_test, t_test, eta = learning_rate, l2_lambda=l2_lambda, batch_size=batch_size, epochs=n_epochs, save_results=False)
+    tf_model, tf_history = tensorflow_model(x_train, t_train, x_test, t_test, eta = learning_rate, l2_lambda=l2_lambda, 
+                                            batch_size=batch_size, epochs=n_epochs, save_results=False, summary=False)
     cnn_predict = tf_model.predict(x_test)
 
     # View an image through the CNN layers
@@ -384,7 +394,11 @@ if __name__ == "__main__":
     x_train, t_train, x_test, t_test = initialize_data()
     x_train_downscaled, x_test_downscaled = downscale()     # For XGBoost without CNN
 
-    # Run
+    # Run to get a summary of the model
+    tensorflow_model(x_train, t_train, x_test, t_test, eta = learning_rate, l2_lambda=l2_lambda, 
+                     batch_size=batch_size, epochs=n_epochs, save_results=False, summary=True)
+
+
     # plot_dataset_balance(t_train)
-    grid_search_eta_lambda(n_epochs)
+    # grid_search_eta_lambda(n_epochs)
     # main()
