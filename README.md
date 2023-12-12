@@ -24,6 +24,7 @@
     - Confusion matrix
     - ROC/AUC (maybe)
     - report
+    - Doc strings on functions and files. Also update list of file above.
     DONE:
     - data augmentation (abandoned)
     - Grid search: batches, learning rate and lambda
