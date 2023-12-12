@@ -209,9 +209,9 @@ epochs = np.arange(n_epochs)
 colors = ["orange", "b", "g"]
 plt.figure(figsize=(10, 6))
 for i, history in enumerate(histories_with_dropout, 0):
-    plt.plot(epochs, history.history['val_accuracy'], label = 'Val Accuracy {} Conv Layers With Dropout'.format(i), color = colors[i])
+    plt.plot(epochs, history.history['val_accuracy'], label = 'Val Accuracy {} Conv Layers With Dropout'.format(i+1), color = colors[i])
 for i, history in enumerate(histories_without_dropout, 0):
-    plt.plot(epochs, history.history['val_accuracy'], label = 'Val Accuracy {} Conv Layers Without Dropout'.format(i), color = colors[i], linestyle = "dashed")
+    plt.plot(epochs, history.history['val_accuracy'], label = 'Val Accuracy {} Conv Layers Without Dropout'.format(i+1), color = colors[i], linestyle = "dashed")
     plt.title('CNN Test Accuracy vs Epochs')
     plt.xlabel('Epoch')
     plt.ylabel('Validation Accuracy')
@@ -223,9 +223,9 @@ epochs = np.arange(n_epochs)
 colors = ["orange", "b", "g"]
 plt.figure(figsize=(10, 6))
 for i, history in enumerate(histories_with_dropout, 0):
-    plt.plot(epochs, history.history['val_loss'], label = 'Val Loss {} Conv Layers With Dropout'.format(i), color = colors[i])
+    plt.plot(epochs, history.history['val_loss'], label = 'Val Loss {} Conv Layers With Dropout'.format(i+1), color = colors[i])
 for i, history in enumerate(histories_without_dropout, 0):
-    plt.plot(epochs, history.history['val_loss'], label = 'Val Loss {} Conv Layers Without Dropout'.format(i), color = colors[i], linestyle = "dashed")
+    plt.plot(epochs, history.history['val_loss'], label = 'Val Loss {} Conv Layers Without Dropout'.format(i+1), color = colors[i], linestyle = "dashed")
     plt.title('CNN Test Loss vs Epochs')
     plt.xlabel('Epoch')
     plt.ylabel('Validation Loss')
