@@ -184,12 +184,12 @@ def initialize_data() -> tuple:
     t_test = np.concatenate(t_test_list, axis=0)
 
     # Balance the classes
-    x_train, t_train = balance_classes(x_train, t_train, target_num_images, augmentation_datagen)
-    x_test, t_test = balance_classes(x_test, t_test, target_num_images, augmentation_datagen)
+    # x_train, t_train = balance_classes(x_train, t_train, target_num_images, augmentation_datagen)
+    # x_test, t_test = balance_classes(x_test, t_test, target_num_images, augmentation_datagen)
 
-    # Shuffle the data
-    x_train, t_train = shuffle(x_train, t_train, random_state=seed)
-    x_test, t_test = shuffle(x_test, t_test, random_state=seed)
+    # # Shuffle the data
+    # x_train, t_train = shuffle(x_train, t_train, random_state=seed)
+    # x_test, t_test = shuffle(x_test, t_test, random_state=seed)
 
     return x_train, t_train, x_test, t_test
 
@@ -269,26 +269,18 @@ def plot_dataset_balance(labels):
 
 def main():
     # One-hot encode the labels
-    encoder = OneHotEncoder()
-    t_train_onehot = encoder.fit_transform(t_train.reshape(-1, 1)).toarray()
-    t_test_onehot = encoder.fit_transform(t_test.reshape(-1, 1)).toarray()
+    # encoder = OneHotEncoder()
+    # t_train_onehot = encoder.fit_transform(t_train.reshape(-1, 1)).toarray()
+    # t_test_onehot = encoder.fit_transform(t_test.reshape(-1, 1)).toarray()
 
     # Load the CNN model and predict
     tf_model, tf_history = tensorflow_model(x_train, t_train, x_test, t_test, eta = learning_rate, batch_size=batch_size, epochs=n_epochs, save_results=False)
     cnn_predict = tf_model.predict(x_test)
+    cnn_score = accuracy_score(np.argmax(t_test, axis=1), np.argmax(cnn_predict, axis=1))
+    print(f"\nTensorFlow CNN accuracy: {100*cnn_score:.2f} %")
 
     # View an image through the CNN layers
-    view_image_through_cnn_layers(tf_model, x_test[0])
-
-    # Initialize the xgboost model
-    xgboost_layer_model = tfk.models.Model(inputs=tf_model.input, 
-                                           outputs=tf_model.get_layer("dense_1").output)
-    xgboost_layer_output_train = xgboost_layer_model.predict(x_train)
-    xgboost_layer_output_test = xgboost_layer_model.predict(x_test)
-
-    # xgb_model = xgboost_model(xgboost_layer_output, np.argmax(t_train, axis=1), X_test_CNN, np.argmax(t_test, axis=1))
-    xgb_model = xgboost_model(xgboost_layer_output_train, np.argmax(t_train, axis=1), xgboost_layer_output_test, np.argmax(t_test, axis=1))
-    xgb_predict = xgb_model.predict(xgb.DMatrix(xgboost_layer_output_test))
+    # view_image_through_cnn_layers(tf_model, x_test[0])
 
     # Load XGBoost without CNN
     xgb_model_pure = xgboost_model(x_train_downscaled, 
@@ -296,17 +288,22 @@ def main():
                                    x_test_downscaled, 
                                    np.argmax(t_test, axis=1))
     xgb_predict_pure = xgb_model_pure.predict(xgb.DMatrix(x_test_downscaled))
-
-
-    # Scores
-    cnn_score = accuracy_score(np.argmax(t_test, axis=1), np.argmax(cnn_predict, axis=1))
-    xgb_score = accuracy_score(np.argmax(t_test, axis=1), np.argmax(xgb_predict, axis=1))
     xgb_score_pure = accuracy_score(np.argmax(t_test, axis=1), np.argmax(xgb_predict_pure, axis=1))
-
-    # Print the results
-    print(f"\nTensorFlow CNN accuracy: {100*cnn_score:.2f} %")
-    print(f"\nXGBoost accuracy: {100*xgb_score:.2f} %")
     print(f"\nXGBoost without CNN accuracy: {100*xgb_score_pure:.2f} %")
+
+    # Initialize the xgboost model
+    for xgb_layer in xgboost_layer_list:
+        xgboost_layer_model = tfk.models.Model(inputs=tf_model.input, 
+                                            outputs=tf_model.get_layer(xgb_layer).output)
+        xgboost_layer_output_train = xgboost_layer_model.predict(x_train)
+        xgboost_layer_output_test = xgboost_layer_model.predict(x_test)
+
+        # xgb_model = xgboost_model(xgboost_layer_output, np.argmax(t_train, axis=1), X_test_CNN, np.argmax(t_test, axis=1))
+        xgb_model = xgboost_model(xgboost_layer_output_train, np.argmax(t_train, axis=1), xgboost_layer_output_test, np.argmax(t_test, axis=1))
+        xgb_predict = xgb_model.predict(xgb.DMatrix(xgboost_layer_output_test))
+
+        xgb_score = accuracy_score(np.argmax(t_test, axis=1), np.argmax(xgb_predict, axis=1))
+        print(f"\nXGBoost\n\tLayer: {xgb_layer}\n\t Accuracy: {100*xgb_score:.2f} %")
 
     # Plot results
     plt.plot(tf_history.history['accuracy'], label='accuracy')
@@ -331,10 +328,10 @@ if __name__ == "__main__":
     seed = 42
     learning_rate = 0.001
     l2_lambda = 0.001
-    n_epochs = 5
+    n_epochs = 2
     batch_size = 32
     target_num_images = 1000  # Set your target number of images per category
-
+    xgboost_layer_list = ["dense_1", "dense_2", "output"]
 
     labels = ["angry", "disgust", "fear", "happy", "neutral", "sad", "surprise"]
     n_classes = len(labels)
@@ -344,6 +341,5 @@ if __name__ == "__main__":
     x_train_downscaled, x_test_downscaled = downscale()     # For XGBoost without CNN
 
     # Run
-    print(t_train.shape)
-    plot_dataset_balance(t_train)
-    # main()
+    # plot_dataset_balance(t_train)
+    main()
