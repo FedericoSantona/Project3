@@ -14,6 +14,14 @@
     Uses a TensorFlow CNN model with Keras and the same architecture as the emotionsTensorFlow-files
     but with XGBoost which takes the output of the dense layers of the CNN as its input.
     It also trains a pure XGBoost model without CNN for comparison.
+- plot_gridsearch.ipynb: plots results of the grid search
+
+### remember in report:
+    - long figure captions
+    - comment code clearly
+    - purpose of each file
+    - testing of code? sanity checks?
+    - check if abstract, introduction and conclusion fulfill the requirements
 
 ### TODO:
     NEXT:
