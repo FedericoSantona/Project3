@@ -22,6 +22,7 @@
     - purpose of each file
     - testing of code? sanity checks?
     - check if abstract, introduction and conclusion fulfill the requirements
+    - check website citations for when they have been accessed
 
 ### TODO:
     NEXT:
