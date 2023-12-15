@@ -1,7 +1,6 @@
 import os
 import zipfile
 from tensorflow import keras as tfk
-from CNN import *
 import matplotlib.pyplot as plt
 import tensorflow as tf
 import numpy as np
