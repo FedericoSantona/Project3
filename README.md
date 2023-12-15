@@ -28,14 +28,12 @@
 
 ### TODO:
     NEXT:
-    - Number of convolutional layers
-    - Filter sizes
-    - Pooling layer sizes
-    - Striding?
+    - Filter sizes, Pooling layer sizes, Striding?
     - Confusion matrix
-    - ROC/AUC (maybe)
+    - ROC/AUC (maybe for underrepresented class)
     - report
     - Doc strings on functions and files. Also update list of file above.
     DONE:
+    - Number of convolutional layers
     - data augmentation (abandoned)
     - Grid search: batches, learning rate and lambda
