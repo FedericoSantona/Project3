@@ -29,6 +29,7 @@
 
 ### TODO:
     NEXT:
+    - check results of grid search
     - Filter sizes, Pooling layer sizes, Striding?
     - Confusion matrix
     - ROC/AUC (maybe for underrepresented class)
