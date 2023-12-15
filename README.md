@@ -1,6 +1,16 @@
 # Project3
 
 ### Files and their purpose
+- CNN_with_XGBoost.py:
+    Uses a TensorFlow CNN model with Keras and the same architecture as the emotionsTensorFlow-files
+    but with XGBoost which takes the output of the dense layers of the CNN as its input.
+    It also trains a pure XGBoost model without CNN for comparison.
+### Grid search
+- CNN_3D_gridsearch.py: script for performing grid search
+- gridsearch_score_data: numerical results of the grid search
+- plot_gridsearch.ipynb: plots results of the grid search
+
+### Previous versions/ attempts at constructing a CNN
 - CNN.py:
     An old file with a purely Python-based CNN class. It imports the CNN layer types from:
         - ActivationFunc.py
@@ -10,14 +20,6 @@
         - FlattenLayer.py
         - Pooling2DLayer.py
         - Schedulers.py
-- CNN_with_XGBoost.py:
-    Uses a TensorFlow CNN model with Keras and the same architecture as the emotionsTensorFlow-files
-    but with XGBoost which takes the output of the dense layers of the CNN as its input.
-    It also trains a pure XGBoost model without CNN for comparison.
-### Grid search
-- CNN_3D_gridsearch.py: script for performing grid search
-- gridsearch_score_data: numerical results of the grid search
-- plot_gridsearch.ipynb: plots results of the grid search
 
 ### remember in report:
     - long figure captions
