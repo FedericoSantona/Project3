@@ -12,9 +12,28 @@ from sklearn.utils import shuffle
 from sklearn.metrics import classification_report, accuracy_score
 from sklearn.preprocessing import OneHotEncoder
 import cv2      # Only for simple rescaling of images
+from view_image_through_CNN_layers import view_image_through_cnn_layers as view_layers
 
 # Functions
 def xgboost_model(x_train, t_train, x_test, t_test, max_depth=10, eta=0.3, num_class=7, n_boosts=20):
+    """
+    Trains an XGBoost model using the given training data and parameters.
+
+    Parameters:
+    - x_train: The training data features.
+    - t_train: The training data labels.
+    - x_test: The test data features.
+    - t_test: The test data labels.
+    - max_depth: The maximum depth of each tree in the XGBoost model. Default is 10.
+    - eta: The learning rate of the XGBoost model. Default is 0.3.
+    - num_class: The number of classes in the classification problem. Default is 7.
+    - n_boosts: The number of boosting rounds. Default is 20.
+
+    Returns:
+    - model: The trained XGBoost model.
+    """
+
+
     # Convert the data to DMatrix format
     d_train = xgb.DMatrix(x_train, label=t_train)
     d_test = xgb.DMatrix(x_test, label=t_test)
@@ -39,6 +58,26 @@ def tensorflow_model(x_train, t_train, x_test, t_test,
                      batch_size=64, epochs=10, 
                      eta = 0.0001, l2_lambda = 0.0001, 
                      save_results = False, summary = False):
+    """
+    Trains a convolutional neural network (CNN) model using TensorFlow.
+
+    Parameters:
+    - x_train (numpy.ndarray): Training data input.
+    - t_train (numpy.ndarray): Training data target.
+    - x_test (numpy.ndarray): Testing data input.
+    - t_test (numpy.ndarray): Testing data target.
+    - batch_size (int): Number of samples per gradient update. Default is 64.
+    - epochs (int): Number of epochs to train the model. Default is 10.
+    - eta (float): Learning rate for the optimizer. Default is 0.0001.
+    - l2_lambda (float): L2 regularization lambda value. Default is 0.0001.
+    - save_results (bool): Whether to save the trained model. Default is False.
+    - summary (bool): Whether to print the model summary. Default is False.
+
+    Returns:
+    - model (tensorflow.python.keras.engine.sequential.Sequential): Trained CNN model.
+    - history (tensorflow.python.keras.callbacks.History): Training history.
+    """
+
     # Set the seed
     tfk.utils.set_random_seed(seed)
 
@@ -92,6 +131,17 @@ def tensorflow_model(x_train, t_train, x_test, t_test,
         return model, history
 
 def augment_images(image, augmentation_datagen, aug_count) -> list:
+    """
+    Augments an image using the specified augmentation data generator.
+
+    Parameters:
+    image (numpy.ndarray): The input image to be augmented.
+    augmentation_datagen (ImageDataGenerator): The data generator used for augmentation.
+    aug_count (int): The number of augmented images to generate.
+
+    Returns:
+    list: A list of augmented images.
+    """
     augmented_images = []
     img = np.expand_dims(image, 0)  # Add batch dimension
     img_gen = augmentation_datagen.flow(img, batch_size=1)
@@ -100,6 +150,20 @@ def augment_images(image, augmentation_datagen, aug_count) -> list:
     return augmented_images
 
 def balance_classes(images, labels, num_samples, augmentation_datagen) -> tuple:
+    """
+    Balances the classes in a dataset by oversampling the minority classes and 
+    undersampling the majority classes using a data augmentation generator.
+
+    Args:
+        images (numpy.ndarray): The input images.
+        labels (numpy.ndarray): The corresponding labels for the images.
+        num_samples (int): The desired number of samples per class after balancing.
+        augmentation_datagen: The data augmentation generator used to augment the images.
+
+    Returns:
+        tuple: A tuple containing the balanced images and labels.
+
+    """
     images_by_class = defaultdict(list)
     labels_by_class = defaultdict(list)
 
@@ -139,7 +203,24 @@ def balance_classes(images, labels, num_samples, augmentation_datagen) -> tuple:
 
     return np.array(balanced_images), np.array(balanced_labels)
 
-def initialize_data() -> tuple:
+def initialize_data(batch_size) -> tuple:
+    """
+    Initialize the data by loading the dataset, preprocessing it, and splitting it into train and test sets.
+    The dataset is assumed to be in a folder called "dataset" in the same directory as this script.
+    Each image is turned into a 48x48 grayscale image and the pixel values are rescaled to be between 0 and 1.
+
+    Args:
+        batch_size (int): The batch size for loading the dataset.
+
+    Returns:
+        tuple: A tuple containing the train and test data arrays.
+            - x_train (ndarray): The training data images.
+            - t_train (ndarray): The training data labels.
+            - x_test (ndarray): The test data images.
+            - t_test (ndarray): The test data labels.
+    """
+
+
     # Load the dataset from the dataset folder
     train_dataset = tfk.preprocessing.image_dataset_from_directory(
         "dataset/train",
@@ -191,68 +272,22 @@ def initialize_data() -> tuple:
     x_test = np.concatenate(x_test_list, axis=0)
     t_test = np.concatenate(t_test_list, axis=0)
 
-    # Balance the classes
-    # x_train, t_train = balance_classes(x_train, t_train, target_num_images, augmentation_datagen)
-    # x_test, t_test = balance_classes(x_test, t_test, target_num_images, augmentation_datagen)
-    # x_train, t_train = balance_classes(x_train, t_train, target_num_images, augmentation_datagen)
-    # x_test, t_test = balance_classes(x_test, t_test, target_num_images, augmentation_datagen)
-
-    # # Shuffle the data
-    # x_train, t_train = shuffle(x_train, t_train, random_state=seed)
-    # x_test, t_test = shuffle(x_test, t_test, random_state=seed)
-
     return x_train, t_train, x_test, t_test
 
-def view_image_through_cnn_layers(model, image):
-    # Get the layer names
-    layer_names = [layer.name for layer in model.layers]
+def downscale(scale_factor=6):
+    """
+    Downscale the images in the dataset using a specified scale factor.
 
-    # Create a model that outputs the activation values for the layers we want to visualize
-    layer_outputs = [layer.output for layer in model.layers[1:4]]
-    activation_model = tfk.models.Model(inputs=model.input, outputs=layer_outputs)
+    Parameters:
+    scale_factor (int): The factor by which to downscale the images. Default is 6.
 
-    print(layer_names[0:-1])
+    Returns:
+    x_train_downscaled (ndarray): The downscaled training images.
+    x_test_downscaled (ndarray): The downscaled testing images.
+    """
 
-    # Get the activations for the image
-    activations = activation_model.predict(image)
-
-    # Visualize the activations
-    images_per_row = 16
-    for layer_name, layer_activation in zip(layer_names, activations):
-        # Number of features in the feature map
-        n_features = layer_activation.shape[-1]
-
-        # The feature map has shape (1, size, size, n_features)
-        size = layer_activation.shape[1]
-
-        # Tiles the activation channels in this matrix
-        n_cols = n_features // images_per_row
-        display_grid = np.zeros((size * n_cols, images_per_row * size))
-
-        # Tiles each filter into a big horizontal grid
-        for col in range(n_cols):
-            for row in range(images_per_row):
-                channel_image = layer_activation[0, :, :, col * images_per_row + row]
-                # Post-process the feature to make it visually palatable
-                channel_image -= channel_image.mean()
-                channel_image /= channel_image.std()
-                channel_image *= 64
-                channel_image += 128
-                channel_image = np.clip(channel_image, 0, 255).astype("uint8")
-                display_grid[col * size : (col + 1) * size, row * size : (row + 1) * size] = channel_image
-
-        # Display the grid
-        scale = 1. / size
-        plt.figure(figsize=(scale * display_grid.shape[1], scale * display_grid.shape[0]))
-        plt.title(layer_name)
-        plt.grid(False)
-        plt.imshow(display_grid, aspect="auto", cmap="viridis")
-    plt.show()
-
-
-def downscale():
     # Reshape the data for XGBoost without CNN
-    downscale_factor = 6
+    downscale_factor = scale_factor
     x_train_downscaled = np.array([cv2.resize(image, (48//downscale_factor, 48//downscale_factor), interpolation=cv2.INTER_AREA) for image in x_train])
     x_test_downscaled  = np.array([cv2.resize(image, (48//downscale_factor, 48//downscale_factor), interpolation=cv2.INTER_AREA) for image in x_test])
     x_train_downscaled = x_train_downscaled.reshape((x_train_downscaled.shape[0], x_train_downscaled.shape[1]**2))
@@ -261,6 +296,16 @@ def downscale():
     return x_train_downscaled, x_test_downscaled
 
 def plot_dataset_balance(labels):
+    """
+    Plot the number of images per category after resampling.
+
+    Parameters:
+    labels (numpy.ndarray): The label array, assumed to be one-hot encoded.
+
+    Returns:
+    None
+    """
+
     # Assuming t_train_balanced is your balanced label array and is one-hot encoded
     class_indices = np.argmax(labels, axis=1)
 
@@ -277,56 +322,7 @@ def plot_dataset_balance(labels):
     plt.xticks(categories)
     plt.show()
 
-def grid_search_eta_lambda(n_epochs):
-    # Grid search for the best eta and lambda
-    etas = [0.0001, 0.001, 0.01, 0.1]
-    lambdas = [0.0001, 0.001, 0.01, 0.1]
-
-    # Run the grid search and calculate the accuracy and loss scores
-    accuracy_scores = np.zeros((len(etas), len(lambdas)))
-    loss_scores = np.zeros((len(etas), len(lambdas)))
-    for i, eta in enumerate(etas):
-        for j, l2_lambda in enumerate(lambdas):
-            tf_model, tf_history = tensorflow_model(x_train, t_train, x_test, t_test, 
-                                                    eta = eta, l2_lambda=l2_lambda, batch_size=batch_size, epochs=n_epochs, 
-                                                    save_results=False, summary=False)
-            cnn_predict = tf_model.predict(x_test)
-            cnn_accuracy = tf_history.history["val_accuracy"][-1]
-            cnn_loss = tf_history.history["val_loss"][-1]
-            accuracy_scores[i, j] = cnn_accuracy
-            loss_scores[i, j] = cnn_loss
-    
-    # Plot heatmaps for the accuracy and loss scores
-    fig, ax = plt.subplots(figsize=(10, 10))
-    sns.heatmap(accuracy_scores, annot=True, ax=ax, cmap="viridis", fmt=".3f")
-    ax.set_xlabel("Lambda", fontsize=16)
-    ax.set_ylabel("Eta", fontsize=16)
-    plt.tick_params(axis='both', which='major', labelsize=14)
-    ax.set_xticklabels(lambdas)
-    ax.set_yticklabels(etas)
-    plt.title("Accuracy for Different Eta and Lambda Values", fontsize=20)
-    cbar = ax.collections[0].colorbar
-    cbar.ax.tick_params(labelsize=14)
-    plt.show()
-
-    fig, ax = plt.subplots(figsize=(10, 10))
-    sns.heatmap(loss_scores, annot=True, ax=ax, cmap="viridis", fmt=".3f")
-    ax.set_xlabel("Lambda", fontsize=16)
-    ax.set_ylabel("Eta", fontsize=16)
-    plt.tick_params(axis='both', which='major', labelsize=14)
-    ax.set_xticklabels(lambdas)
-    ax.set_yticklabels(etas)
-    plt.title("Loss for Different Eta and Lambda Values", fontsize=20)
-    cbar = ax.collections[0].colorbar
-    cbar.ax.tick_params(labelsize=14)
-    plt.show()
-
 def main():
-    # One-hot encode the labels
-    # encoder = OneHotEncoder()
-    # t_train_onehot = encoder.fit_transform(t_train.reshape(-1, 1)).toarray()
-    # t_test_onehot = encoder.fit_transform(t_test.reshape(-1, 1)).toarray()
-
     # Load the CNN model and predict
     tf_model, tf_history = tensorflow_model(x_train, t_train, x_test, t_test, eta = learning_rate, l2_lambda=l2_lambda, 
                                             batch_size=batch_size, epochs=n_epochs, save_results=False, summary=False)
@@ -335,7 +331,7 @@ def main():
     print(f"\nTensorFlow CNN accuracy: {100*cnn_score:.2f} %")
 
     # View an image through the CNN layers
-    # view_image_through_cnn_layers(tf_model, x_test[0])
+    view_layers(tf_model, x_test[0])
 
     # Initialize the xgboost model
     xgboost_layer_model = tfk.models.Model(inputs=tf_model.input, 
@@ -391,10 +387,10 @@ def main():
 if __name__ == "__main__":
     # Parameters and variables
     seed = 42
-    learning_rate = 0.0001
-    l2_lambda = 0.001
-    n_epochs = 2
-    batch_size = 32
+    learning_rate = 0.001
+    l2_lambda = 0.0001
+    n_epochs = 300
+    batch_size = 128
     target_num_images = 1000  # Set your target number of images per category
     xgboost_layer_list = ["dense_1", "dense_2", "output"]
 
@@ -402,14 +398,9 @@ if __name__ == "__main__":
     n_classes = len(labels)
 
     # Initialize the data
-    x_train, t_train, x_test, t_test = initialize_data()
+    x_train, t_train, x_test, t_test = initialize_data(batch_size)
     x_train_downscaled, x_test_downscaled = downscale()     # For XGBoost without CNN
-
-    # Run to get a summary of the model
-    tensorflow_model(x_train, t_train, x_test, t_test, eta = learning_rate, l2_lambda=l2_lambda, 
-                     batch_size=batch_size, epochs=n_epochs, save_results=False, summary=True)
-
 
     # plot_dataset_balance(t_train)
     # grid_search_eta_lambda(n_epochs)
-    # main()
+    main()
