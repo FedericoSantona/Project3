@@ -31,13 +31,13 @@
 
 ### TODO:
     NEXT:
-    - check results of grid search
     - Filter sizes, Pooling layer sizes, Striding?
     - Confusion matrix
     - ROC/AUC (maybe for underrepresented class)
     - report
     - Doc strings on functions and files. Also update list of file above.
     DONE:
+    - check results of grid search
     - Number of convolutional layers
     - data augmentation (abandoned)
     - Grid search: batches, learning rate and lambda
