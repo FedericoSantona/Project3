@@ -1,4 +1,5 @@
 # Project3
+by Alessia Sanfelici, Andreas Alstad, Carmen Ditscheid and Federico Santona
 
 ### Files and their purpose
 - CNN_with_XGBoost.py:
