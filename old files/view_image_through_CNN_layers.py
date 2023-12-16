@@ -3,6 +3,18 @@ import matplotlib.pyplot as plt
 from tensorflow import keras as tfk
 
 def view_image_through_cnn_layers(model, image):
+    """
+    NOTE: ABANDONED/UNFINISHED FUNCTION
+    Visualizes the activations of each layer in a CNN model for a given image.
+
+    Args:
+        model (tf.keras.Model): The CNN model.
+        image (numpy.ndarray): The input image.
+
+    Returns:
+        None
+    """
+
     print(image.shape)
     # Get the layer names
     layer_names = [layer.name for layer in model.layers]
