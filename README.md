@@ -43,14 +43,16 @@ by Alessia Sanfelici, Andreas Alstad, Carmen Ditscheid and Federico Santona
 
 ### TODO:
     NEXT:
-    - Filter sizes, Pooling layer sizes, Striding?
+    -  Pooling layer sizes, Striding?
     - complete file list where it says ADD
     - Doc strings on functions and files
 
     - Confusion matrix
     - ROC/AUC (maybe for underrepresented class)
-    - report
+    - finish report
+    - proof read report (see checklist above)
     DONE:
+    - Filter sizes
     - check results of grid search
     - Number of convolutional layers
     - data augmentation (abandoned)
