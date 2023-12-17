@@ -1,15 +1,13 @@
+import os
 import numpy as np
 from collections import defaultdict
 import matplotlib.pyplot as plt
-import seaborn as sns
 from tensorflow import keras as tfk
 from tensorflow.keras.callbacks import ModelCheckpoint
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 import xgboost as xgb
-from xgboost import XGBClassifier
-from sklearn.utils import shuffle
-from sklearn.metrics import classification_report, accuracy_score
+from sklearn.metrics import accuracy_score
 from sklearn.preprocessing import OneHotEncoder
 import cv2      # Only for simple rescaling of images
 
@@ -56,7 +54,7 @@ def xgboost_model(x_train, t_train, x_test, t_test, max_depth=10, eta=0.3, num_c
 def tensorflow_model(
         x_train, t_train, x_test, t_test, 
         batch_size=64, epochs=100, 
-        eta = 0.0001, l2_lambda = 0.0001,
+        eta = 0.001, l2_lambda = 0.0001,
         n_filters: int = 32,
         kernel_size: tuple = (3, 3),
         pool_size: tuple = (2, 2),
@@ -64,6 +62,8 @@ def tensorflow_model(
         dropout: float = 0.3,
         fc_neurons_1: int = 64,
         fc_neurons_2: int = 7,
+        enable_zero_padding: bool = False,
+        enable_padding: str = "kernel",
         save_results = False, summary = False, seed = 42):
     """
     Trains a convolutional neural network (CNN) model using TensorFlow.
@@ -74,8 +74,8 @@ def tensorflow_model(
     - x_test (numpy.ndarray): Testing data input.
     - t_test (numpy.ndarray): Testing data target.
     - batch_size (int): Number of samples per gradient update. Default is 64.
-    - epochs (int): Number of epochs to train the model. Default is 10.
-    - eta (float): Learning rate for the optimizer. Default is 0.0001.
+    - epochs (int): Number of epochs to train the model. Default is 100.
+    - eta (float): Learning rate for the optimizer. Default is 0.001.
     - l2_lambda (float): L2 regularization lambda value. Default is 0.0001.
     - save_results (bool): Whether to save the trained model. Default is False.
     - summary (bool): Whether to print the model summary. Default is False.
@@ -89,26 +89,51 @@ def tensorflow_model(
     tfk.utils.set_random_seed(seed)
 
     # Initialize CNN model
-    model = tfk.Sequential([
-        tfk.layers.Conv2D(n_filters, kernel_size, strides, activation="relu", input_shape=(48, 48, 1), name="conv2d_1"),
-        tfk.layers.MaxPooling2D(pool_size, name="maxpooling_1"),
-        tfk.layers.Conv2D(n_filters*2, kernel_size, strides = (1,1), activation="relu", name="conv2d_2"),
-        tfk.layers.MaxPooling2D(pool_size, name="maxpooling_2"),
-        tfk.layers.Conv2D(n_filters*2, kernel_size, strides = (1,1), activation="relu", name="conv2d_3"),
-        tfk.layers.MaxPooling2D(pool_size, name="maxpooling_3"),
-        tfk.layers.Dropout(dropout, name="dropout_1"),
-        tfk.layers.Flatten(name="flatten_1"),
-        tfk.layers.Dense(fc_neurons_1, activation="relu", kernel_regularizer=tfk.regularizers.l2(l2_lambda), name="dense_1"),
-        tfk.layers.Dense(fc_neurons_2, activation="relu", kernel_regularizer=tfk.regularizers.l2(l2_lambda), name="dense_2"),
-        tfk.layers.Dense(n_classes, activation="softmax", name="output")
-    ])
+    if enable_zero_padding:
+        if enable_padding == "kernel":
+            row_padding = int(np.floor(kernel_size[0]/2)*2)
+            col_padding = int(np.floor(kernel_size[1]/2)*2)
+        elif enable_padding == "pool":
+            row_padding = int(np.floor(pool_size[0]/2)*2)
+            col_padding = int(np.floor(pool_size[1]/2)*2)
+
+        model = tfk.Sequential([
+            tfk.layers.ZeroPadding2D(padding=(row_padding, col_padding), name="zero_padding_1"),
+            tfk.layers.Conv2D(n_filters, kernel_size, strides, activation="relu", input_shape=(48, 48, 1), name="conv2d_1"),
+            tfk.layers.MaxPooling2D(pool_size, name="maxpooling_1"),
+            tfk.layers.ZeroPadding2D(padding=(row_padding, col_padding), name="zero_padding_2"),
+            tfk.layers.Conv2D(n_filters*2, kernel_size, strides = (1,1), activation="relu", name="conv2d_2"),
+            tfk.layers.MaxPooling2D(pool_size, name="maxpooling_2"),
+            tfk.layers.ZeroPadding2D(padding=(row_padding, col_padding), name="zero_padding_3"),
+            tfk.layers.Conv2D(n_filters*2, kernel_size, strides = (1,1), activation="relu", name="conv2d_3"),
+            tfk.layers.MaxPooling2D(pool_size, name="maxpooling_3"),
+            tfk.layers.Dropout(dropout, name="dropout_1"),
+            tfk.layers.Flatten(name="flatten_1"),
+            tfk.layers.Dense(fc_neurons_1, activation="relu", kernel_regularizer=tfk.regularizers.l2(l2_lambda), name="dense_1"),
+            tfk.layers.Dense(fc_neurons_2, activation="relu", kernel_regularizer=tfk.regularizers.l2(l2_lambda), name="dense_2"),
+            tfk.layers.Dense(n_classes, activation="softmax", name="output")
+        ])
+    else:
+        model = tfk.Sequential([
+            tfk.layers.Conv2D(n_filters, kernel_size, strides, activation="relu", input_shape=(48, 48, 1), name="conv2d_1"),
+            tfk.layers.MaxPooling2D(pool_size, name="maxpooling_1"),
+            tfk.layers.Conv2D(n_filters*2, kernel_size, strides = (1,1), activation="relu", name="conv2d_2"),
+            tfk.layers.MaxPooling2D(pool_size, name="maxpooling_2"),
+            tfk.layers.Conv2D(n_filters*2, kernel_size, strides = (1,1), activation="relu", name="conv2d_3"),
+            tfk.layers.MaxPooling2D(pool_size, name="maxpooling_3"),
+            tfk.layers.Dropout(dropout, name="dropout_1"),
+            tfk.layers.Flatten(name="flatten_1"),
+            tfk.layers.Dense(fc_neurons_1, activation="relu", kernel_regularizer=tfk.regularizers.l2(l2_lambda), name="dense_1"),
+            tfk.layers.Dense(fc_neurons_2, activation="relu", kernel_regularizer=tfk.regularizers.l2(l2_lambda), name="dense_2"),
+            tfk.layers.Dense(n_classes, activation="softmax", name="output")
+        ])
 
     # Compile the model
     opt = tfk.optimizers.Adam(learning_rate=eta)
     model.compile(optimizer=opt, loss="categorical_crossentropy", metrics=["accuracy"])    
 
     checkpoint_callback = ModelCheckpoint(
-        filepath=r"best_model.pth",  # Corrected path
+        filepath=r"best_model.pth",
         monitor = "val_loss",
         verbose = 0,
         save_best_only = True,
@@ -329,16 +354,35 @@ def plot_dataset_balance(labels):
     plt.xticks(categories)
     plt.show()
 
-def plot_CNN_layer_params_scores(x_train, t_train, x_test, t_test, test_variable, n_epochs = 100, batch_size = 128, eta = 0.0001, l2_lambda = 0.0001):
+def plot_CNN_layer_params_scores(x_train, t_train, x_test, t_test, test_variable, n_epochs = 100, batch_size = 128, eta = 0.001, l2_lambda = 0.0001):
+    """
+    Plots the accuracy and loss of a CNN model for different values of a specified parameter used by the model's layers.
+    NOTE: This function is only for testing the different parameters of the CNN model. It is not used in the final model.
+
+    Parameters:
+    - x_train (numpy.ndarray): Training data.
+    - t_train (numpy.ndarray): Training labels.
+    - x_test (numpy.ndarray): Testing data.
+    - t_test (numpy.ndarray): Testing labels.
+    - test_variable (str): The variable to be tested. Possible values: 'filters', 'kernel_size', 'pool_size', 'strides', 'dropout', 'fc_neurons_1', 'fc_neurons_2'.
+    - n_epochs (int): Number of epochs for training the model. Default is 100.
+    - batch_size (int): Batch size for training the model. Default is 128.
+    - eta (float): Learning rate for training the model. Default is 0.0001.
+    - l2_lambda (float): L2 regularization lambda for training the model. Default is 0.0001.
+
+    Returns:
+    - None
+    """
+
     test_params = {
         'filters': [8, 16, 32, 64],
-        'kernel_size': [(3, 3), (5, 5), (7, 7)],
+        'kernel_size': [(3, 3), (4, 4), (5, 5)],
         'pool_size': [(2, 2), (3, 3), (4, 4)],
-        'strides': [(2, 2), (3, 3), (4, 4)],
+        'strides': [(1, 1), (2, 2), (3, 3), (4, 4)],
         'dropout': [0.3, 0.4, 0.5, 0.6, 0.7],
         'fc_neurons_1': [64, 128, 256],
-        'fc_neurons_2': [64, 128, 256],
-        'color_cycle': ['r', 'g', 'b', 'm', 'c']
+        'fc_neurons_2': [7, 32, 64, 128],
+        'color_cycle': ['r', 'g', 'b', 'm', 'c', 'k']
     }
 
     # Initialize figure
@@ -348,59 +392,62 @@ def plot_CNN_layer_params_scores(x_train, t_train, x_test, t_test, test_variable
     # Initialize the model and train for all the values of the test variable
     for test_value in test_params[test_variable]:
         color = test_params['color_cycle'].pop(0)
-        match test_variable:
-            case "filters":
-                model, history = tensorflow_model(x_train, t_train, x_test, t_test, n_filters=test_value, summary=False, epochs=n_epochs, batch_size=batch_size, eta=eta, l2_lambda=l2_lambda)
-                ax_acc.plot(history.history['accuracy'], c=color, label=f"Acc: {test_variable} = {test_value}")
-                ax_acc.plot(history.history['val_accuracy'], c=color, ls='--', label = f"Val. acc: {test_variable} = {test_value}")
-                ax_loss.plot(history.history['loss'], c=color, label=f"Loss: {test_variable} = {test_value}")  
-                ax_loss.plot(history.history['val_loss'], c=color, ls='--', label = f"Val. loss: {test_variable} = {test_value}")
-                tfk.backend.clear_session()
-            case "kernel_size":
-                model, history = tensorflow_model(x_train, t_train, x_test, t_test, kernel_size=test_value, summary=False, epochs=n_epochs, batch_size=batch_size, eta=eta, l2_lambda=l2_lambda)
-                ax_acc.plot(history.history['accuracy'], c=color, label=f"Acc: {test_variable} = {test_value}")
-                ax_acc.plot(history.history['val_accuracy'], c=color, ls='--', label = f"Val. acc: {test_variable} = {test_value}")
-                ax_loss.plot(history.history['loss'], c=color, label=f"Loss: {test_variable} = {test_value}")  
-                ax_loss.plot(history.history['val_loss'], c=color, ls='--', label = f"Val. loss: {test_variable} = {test_value}")
-                tfk.backend.clear_session()
-            case "pool_size":
-                model, history = tensorflow_model(x_train, t_train, x_test, t_test, pool_size=test_value, summary=False, epochs=n_epochs, batch_size=batch_size, eta=eta, l2_lambda=l2_lambda)
-                ax_acc.plot(history.history['accuracy'], c=color, label=f"Acc: {test_variable} = {test_value}")
-                ax_acc.plot(history.history['val_accuracy'], c=color, ls='--', label = f"Val. acc: {test_variable} = {test_value}")
-                ax_loss.plot(history.history['loss'], c=color, label=f"Loss: {test_variable} = {test_value}")  
-                ax_loss.plot(history.history['val_loss'], c=color, ls='--', label = f"Val. loss: {test_variable} = {test_value}")
-                tfk.backend.clear_session()
-            case "strides":
-                model, history = tensorflow_model(x_train, t_train, x_test, t_test, strides=test_value, summary=False, epochs=n_epochs, batch_size=batch_size, eta=eta, l2_lambda=l2_lambda)
-                ax_acc.plot(history.history['accuracy'], c=color, label=f"Acc: {test_variable} = {test_value}")
-                ax_acc.plot(history.history['val_accuracy'], c=color, ls='--', label = f"Val. acc: {test_variable} = {test_value}")
-                ax_loss.plot(history.history['loss'], c=color, label=f"Loss: {test_variable} = {test_value}")  
-                ax_loss.plot(history.history['val_loss'], c=color, ls='--', label = f"Val. loss: {test_variable} = {test_value}")
-                tfk.backend.clear_session()
-            case "dropout":
-                model, history = tensorflow_model(x_train, t_train, x_test, t_test, dropout=test_value, summary=False, epochs=n_epochs, batch_size=batch_size, eta=eta, l2_lambda=l2_lambda)
-                ax_acc.plot(history.history['accuracy'], c=color, label=f"Acc: {test_variable} = {test_value}")
-                ax_acc.plot(history.history['val_accuracy'], c=color, ls='--', label = f"Val. acc: {test_variable} = {test_value}")
-                ax_loss.plot(history.history['loss'], c=color, label=f"Loss: {test_variable} = {test_value}")  
-                ax_loss.plot(history.history['val_loss'], c=color, ls='--', label = f"Val. loss: {test_variable} = {test_value}")
-                tfk.backend.clear_session()
-            case "fc_neurons_1":
-                model, history = tensorflow_model(x_train, t_train, x_test, t_test, fc_neurons_1=test_value, summary=False, epochs=n_epochs, batch_size=batch_size, eta=eta, l2_lambda=l2_lambda)
-                ax_acc.plot(history.history['accuracy'], c=color, label=f"Acc: {test_variable} = {test_value}")
-                ax_acc.plot(history.history['val_accuracy'], c=color, ls='--', label = f"Val. acc: {test_variable} = {test_value}")
-                ax_loss.plot(history.history['loss'], c=color, label=f"Loss: {test_variable} = {test_value}")  
-                ax_loss.plot(history.history['val_loss'], c=color, ls='--', label = f"Val. loss: {test_variable} = {test_value}")
-                tfk.backend.clear_session()
-            case "fc_neurons_2":
-                model, history = tensorflow_model(x_train, t_train, x_test, t_test, fc_neurons_2=test_value, summary=False, n_epochs=n_epochs, batch_size=batch_size, eta=eta, l2_lambda=l2_lambda)
-                ax_acc.plot(history.history['accuracy'], c=color, label=f"Acc: {test_variable} = {test_value}")
-                ax_acc.plot(history.history['val_accuracy'], c=color, ls='--', label = f"Val. acc: {test_variable} = {test_value}")
-                ax_loss.plot(history.history['loss'], c=color, label=f"Loss: {test_variable} = {test_value}")  
-                ax_loss.plot(history.history['val_loss'], c=color, ls='--', label = f"Val. loss: {test_variable} = {test_value}")
-                tfk.backend.clear_session()
-            case _:
-                print("Invalid test variable.")
-                return None
+        if test_variable == "filters":
+            model, history = tensorflow_model(x_train, t_train, x_test, t_test, n_filters=test_value, summary=False, epochs=n_epochs, batch_size=batch_size, eta=eta, l2_lambda=l2_lambda)
+            ax_acc.plot(history.history['accuracy'], c=color, label=f"Acc: {test_variable} = {test_value}")
+            ax_acc.plot(history.history['val_accuracy'], c=color, ls='--', label = f"Val. acc: {test_variable} = {test_value}")
+            ax_loss.plot(history.history['loss'], c=color, label=f"Loss: {test_variable} = {test_value}")  
+            ax_loss.plot(history.history['val_loss'], c=color, ls='--', label = f"Val. loss: {test_variable} = {test_value}")
+            tfk.backend.clear_session()
+        if test_variable == "kernel_size":
+            model, history = tensorflow_model(x_train, t_train, x_test, t_test, kernel_size=test_value, summary=False, epochs=n_epochs, batch_size=batch_size, eta=eta, l2_lambda=l2_lambda)
+            ax_acc.plot(history.history['accuracy'], c=color, label=f"Acc: {test_variable} = {test_value}")
+            ax_acc.plot(history.history['val_accuracy'], c=color, ls='--')
+            ax_loss.plot(history.history['loss'], c=color, label=f"Loss: {test_variable} = {test_value}")  
+            ax_loss.plot(history.history['val_loss'], c=color, ls='--')
+            tfk.backend.clear_session()
+            color2 = test_params['color_cycle'].pop(0)
+            model, history = tensorflow_model(x_train, t_train, x_test, t_test, kernel_size=test_value, summary=False, epochs=n_epochs, batch_size=batch_size, eta=eta, l2_lambda=l2_lambda, enable_zero_padding=True)
+            ax_acc.plot(history.history['accuracy'], c=color2, label=f"Acc: {test_variable} = {test_value} (zero padding)")
+            ax_acc.plot(history.history['val_accuracy'], c=color2, ls='--')
+            ax_loss.plot(history.history['loss'], c=color2, label=f"Loss: {test_variable} = {test_value} (zero padding)")
+            ax_loss.plot(history.history['val_loss'], c=color2, ls='--')
+            tfk.backend.clear_session()
+        if test_variable == "pool_size":
+            model, history = tensorflow_model(x_train, t_train, x_test, t_test, pool_size=test_value, summary=False, epochs=n_epochs, batch_size=batch_size, eta=eta, l2_lambda=l2_lambda, enable_zero_padding=True, enable_padding="pool")
+            ax_acc.plot(history.history['accuracy'], c=color, label=f"Acc: {test_variable} = {test_value}")
+            ax_acc.plot(history.history['val_accuracy'], c=color, ls='--', label = f"Val. acc: {test_variable} = {test_value}")
+            ax_loss.plot(history.history['loss'], c=color, label=f"Loss: {test_variable} = {test_value}")  
+            ax_loss.plot(history.history['val_loss'], c=color, ls='--', label = f"Val. loss: {test_variable} = {test_value}")
+            tfk.backend.clear_session()
+        if test_variable == "strides":
+            model, history = tensorflow_model(x_train, t_train, x_test, t_test, strides=test_value, summary=False, epochs=n_epochs, batch_size=batch_size, eta=eta, l2_lambda=l2_lambda)
+            ax_acc.plot(history.history['accuracy'], c=color, label=f"Acc: {test_variable} = {test_value}")
+            ax_acc.plot(history.history['val_accuracy'], c=color, ls='--', label = f"Val. acc: {test_variable} = {test_value}")
+            ax_loss.plot(history.history['loss'], c=color, label=f"Loss: {test_variable} = {test_value}")  
+            ax_loss.plot(history.history['val_loss'], c=color, ls='--', label = f"Val. loss: {test_variable} = {test_value}")
+            tfk.backend.clear_session()
+        if test_variable == "dropout":
+            model, history = tensorflow_model(x_train, t_train, x_test, t_test, dropout=test_value, summary=False, epochs=n_epochs, batch_size=batch_size, eta=eta, l2_lambda=l2_lambda)
+            ax_acc.plot(history.history['accuracy'], c=color, label=f"Acc: {test_variable} = {test_value}")
+            ax_acc.plot(history.history['val_accuracy'], c=color, ls='--', label = f"Val. acc: {test_variable} = {test_value}")
+            ax_loss.plot(history.history['loss'], c=color, label=f"Loss: {test_variable} = {test_value}")  
+            ax_loss.plot(history.history['val_loss'], c=color, ls='--', label = f"Val. loss: {test_variable} = {test_value}")
+            tfk.backend.clear_session()
+        if test_variable == "fc_neurons_1":
+            model, history = tensorflow_model(x_train, t_train, x_test, t_test, fc_neurons_1=test_value, summary=False, epochs=n_epochs, batch_size=batch_size, eta=eta, l2_lambda=l2_lambda)
+            ax_acc.plot(history.history['accuracy'], c=color, label=f"Acc: {test_variable} = {test_value}")
+            ax_acc.plot(history.history['val_accuracy'], c=color, ls='--', label = f"Val. acc: {test_variable} = {test_value}")
+            ax_loss.plot(history.history['loss'], c=color, label=f"Loss: {test_variable} = {test_value}")  
+            ax_loss.plot(history.history['val_loss'], c=color, ls='--', label = f"Val. loss: {test_variable} = {test_value}")
+            tfk.backend.clear_session()
+        if test_variable == "fc_neurons_2":
+            model, history = tensorflow_model(x_train, t_train, x_test, t_test, fc_neurons_2=test_value, summary=False, epochs=n_epochs, batch_size=batch_size, eta=eta, l2_lambda=l2_lambda)
+            ax_acc.plot(history.history['accuracy'], c=color, label=f"Acc: {test_variable} = {test_value}")
+            ax_acc.plot(history.history['val_accuracy'], c=color, ls='--', label = f"Val. acc: {test_variable} = {test_value}")
+            ax_loss.plot(history.history['loss'], c=color, label=f"Loss: {test_variable} = {test_value}")  
+            ax_loss.plot(history.history['val_loss'], c=color, ls='--', label = f"Val. loss: {test_variable} = {test_value}")
+            tfk.backend.clear_session()
 
     # Plot the results
     ax_acc.set_title(f"Accuracy vs. Epochs for Different {test_variable} Values", fontsize=16)
@@ -415,7 +462,42 @@ def plot_CNN_layer_params_scores(x_train, t_train, x_test, t_test, test_variable
     ax_loss.legend(fontsize=10, loc='best')
     fig_loss.savefig(f"loss_{test_variable}_.png")
 
+def XGBoost_parameter_tuning(x_train, t_train, x_test, t_test, n_epochs = 100, batch_size = 64, eta = 0.001, l2_lambda = 0.0001):
+    tf_model, _ = tensorflow_model(x_train, t_train, x_test, t_test, summary=False, epochs=n_epochs, batch_size=batch_size, eta=eta, l2_lambda=l2_lambda)
+
+    test_params = {
+        'max_depth': [6, 8, 10, 12],
+        'eta': [0.1, 0.3, 0.5, 0.7],
+        'n_boosts': [10, 20, 30, 40, 50]
+    }
+
+    # Prepare scores for plotting
+    accuracy_scores = np.zeros((len(test_params['max_depth']), len(test_params['eta']), len(test_params['n_boosts'])))
+
+    # Initialize XGBoost model
+    for test_value in test_params['max_depth']:
+        xgboost_layer_model = tfk.models.Model(inputs=tf_model.input, 
+                                            outputs=tf_model.get_layer("dense_1").output)
+        xgboost_layer_output_train = xgboost_layer_model.predict(x_train)
+        xgboost_layer_output_test = xgboost_layer_model.predict(x_test)
+
+        # xgb_model = xgboost_model(xgboost_layer_output, np.argmax(t_train, axis=1), X_test_CNN, np.argmax(t_test, axis=1))
+        xgb_model = xgboost_model(xgboost_layer_output_train, np.argmax(t_train, axis=1), xgboost_layer_output_test, np.argmax(t_test, axis=1), max_depth=test_value)
+        xgb_predict = xgb_model.predict(xgb.DMatrix(xgboost_layer_output_test))
+
+        xgb_score = accuracy_score(np.argmax(t_test, axis=1), np.argmax(xgb_predict, axis=1))
+        print(f"\nXGBoost\n\tMax depth: {test_value}\n\t Accuracy: {100*xgb_score:.2f} %")
+
 def main():
+    """
+    This is the main function of the script. It loads the CNN model, trains it, and prints the model's accuracy and loss.
+    XGBoost is then introduced in two ways: with and without the CNN model. The accuracy of both models is printed.
+    For the XGBoost model without CNN, the images are downscaled to 8x8 pixels and the pixel values are rescaled to be between 0 and 1.
+    For the XGBoost model with CNN, the output of the different dense (fully-connected) layers of the CNN model is used as the input for the XGBoost model.
+    
+    Returns:
+    None
+    """
     # Load the CNN model and predict
     tf_model, tf_history = tensorflow_model(x_train, t_train, x_test, t_test, eta = learning_rate, l2_lambda=l2_lambda, 
                                             batch_size=batch_size, epochs=n_epochs, save_results=False, summary=False)
@@ -480,7 +562,7 @@ if __name__ == "__main__":
     learning_rate = 0.001
     l2_lambda = 0.0001
     n_epochs = 50
-    batch_size = 128
+    batch_size = 64
     target_num_images = 1000  # Set your target number of images per category
     xgboost_layer_list = ["dense_1", "dense_2", "output"]
 
@@ -493,5 +575,5 @@ if __name__ == "__main__":
 
     # plot_dataset_balance(t_train)
     # grid_search_eta_lambda(n_epochs)
-    plot_CNN_layer_params_scores(x_train, t_train, x_test, t_test, test_variable="filters", n_epochs=n_epochs, batch_size=batch_size, eta=learning_rate, l2_lambda=l2_lambda)
+    plot_CNN_layer_params_scores(x_train, t_train, x_test, t_test, test_variable="kernel_size", n_epochs=n_epochs, batch_size=batch_size, eta=learning_rate, l2_lambda=l2_lambda)
     # main()
