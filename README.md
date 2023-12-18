@@ -35,20 +35,16 @@ by Alessia Sanfelici, Andreas Alstad, Carmen Ditscheid and Federico Santona
 
 ### remember in report:
     - long figure captions
-    - comment code clearly
-    - purpose of each file
-    - testing of code? sanity checks?
-    - check if abstract, introduction and conclusion fulfill the requirements
     - check website citations for when they have been accessed
 
 ### TODO:
     NEXT:
     - complete file list where it says ADD
     - Doc strings on functions and files
-    - Confusion matrix
-    - write conclusion
+    - conclusion: comparison to research paper
     - proof read report (see checklist above)
     DONE:
+     - Confusion matrix
     - Filter sizes
     - Pooling layer sizes, Striding?
     - ROC/AUC (maybe for underrepresented class)
