@@ -12,7 +12,7 @@ from sklearn.preprocessing import OneHotEncoder
 import cv2      # Only for simple rescaling of images
 
 # Functions
-def xgboost_model(x_train, t_train, x_test, t_test, max_depth=10, eta=0.3, num_class=7, n_boosts=20):
+def xgboost_model(x_train, t_train, x_test, t_test, max_depth=10, eta=0.3, num_class=7, n_boosts=20, gamma=0.0, l2_lambda=0.0001, seed=42):
     """
     Trains an XGBoost model using the given training data and parameters.
 
@@ -43,7 +43,8 @@ def xgboost_model(x_train, t_train, x_test, t_test, max_depth=10, eta=0.3, num_c
         "objective": "multi:softprob",
         "num_class": num_class,
         "eval_metric": "mlogloss",
-        "lambda": l2_lambda
+        "lambda": l2_lambda,
+        "gamma": gamma
     }
 
     # Train the model
@@ -462,31 +463,82 @@ def plot_CNN_layer_params_scores(x_train, t_train, x_test, t_test, test_variable
     ax_loss.legend(fontsize=10, loc='best')
     fig_loss.savefig(f"loss_{test_variable}_.png")
 
-def XGBoost_parameter_tuning(x_train, t_train, x_test, t_test, n_epochs = 100, batch_size = 64, eta = 0.001, l2_lambda = 0.0001):
+def XGBoost_parameter_tuning(x_train, t_train, x_test, t_test, test_variable,
+                             n_epochs=100, batch_size=64, eta=0.001, l2_lambda=0.0001):
+    """
+    Perform XGBoost parameter tuning for a given test variable.
+
+    Args:
+        x_train (numpy.ndarray): Training data features.
+        t_train (numpy.ndarray): Training data labels.
+        x_test (numpy.ndarray): Test data features.
+        t_test (numpy.ndarray): Test data labels.
+        test_variable (str): The variable to be tuned.
+        n_epochs (int, optional): Number of epochs for the TensorFlow model. Defaults to 100.
+        batch_size (int, optional): Batch size for training. Defaults to 64.
+        eta (float, optional): Learning rate for the XGBoost model. Defaults to 0.001.
+        l2_lambda (float, optional): L2 regularization lambda for the XGBoost model. Defaults to 0.0001.
+
+    Returns:
+        None
+    """
+
+    # Initialize the TensorFlow model
     tf_model, _ = tensorflow_model(x_train, t_train, x_test, t_test, summary=False, epochs=n_epochs, batch_size=batch_size, eta=eta, l2_lambda=l2_lambda)
 
+    # Initialize the xgboost model with the output of the specified layer of the TensorFlow model
+    xgboost_layer_model = tfk.models.Model(inputs=tf_model.input, 
+                                           outputs=tf_model.get_layer("dense_1").output)
+    xgboost_layer_output_train = xgboost_layer_model.predict(x_train)
+    xgboost_layer_output_test = xgboost_layer_model.predict(x_test)
+
+    # Set the parameters to be tuned for the xgboost model
     test_params = {
-        'max_depth': [6, 8, 10, 12],
-        'eta': [0.1, 0.3, 0.5, 0.7],
-        'n_boosts': [10, 20, 30, 40, 50]
+        'max_depth': [4, 6, 8, 10],                     # Maximum depth of each tree
+        'xgb_eta': [0.05, 0.1, 0.15, 0.2],              # Learning rate
+        'n_boosts': [10, 20, 30, 40],                   # Number of boosting rounds
+        'xgb_lambda': [0.0001, 0.001, 0.01, 0.1, 1.0],  # Regularization term, analogous to L2 regularization
+        'gamma': [0.0, 0.1, 0.2, 0.3, 0.4, 0.5]         # Minimum loss reduction required to make a further partition on a leaf node of the tree
     }
 
     # Prepare scores for plotting
-    accuracy_scores = np.zeros((len(test_params['max_depth']), len(test_params['eta']), len(test_params['n_boosts'])))
+    tf_score = accuracy_score(np.argmax(t_test, axis=1), np.argmax(tf_model.predict(x_test), axis=1))
+    accuracy_scores = np.zeros((len(test_params[test_variable]), 2))
 
-    # Initialize XGBoost model
-    for test_value in test_params['max_depth']:
-        xgboost_layer_model = tfk.models.Model(inputs=tf_model.input, 
-                                            outputs=tf_model.get_layer("dense_1").output)
-        xgboost_layer_output_train = xgboost_layer_model.predict(x_train)
-        xgboost_layer_output_test = xgboost_layer_model.predict(x_test)
+    # Initialize the model and train for all the values of the test variable
+    for i, test_value in enumerate(test_params[test_variable]):
+        if test_variable == "max_depth":
+            xgb_model = xgboost_model(xgboost_layer_output_train, np.argmax(t_train, axis=1), xgboost_layer_output_test, np.argmax(t_test, axis=1), max_depth=test_value)
+            xgb_predict = xgb_model.predict(xgb.DMatrix(xgboost_layer_output_test))
+            xgb_score = accuracy_score(np.argmax(t_test, axis=1), np.argmax(xgb_predict, axis=1))
+            accuracy_scores[i, :] = [test_value, xgb_score]
+        if test_variable == "xgb_eta":
+            xgb_model = xgboost_model(xgboost_layer_output_train, np.argmax(t_train, axis=1), xgboost_layer_output_test, np.argmax(t_test, axis=1), eta=test_value)
+            xgb_predict = xgb_model.predict(xgb.DMatrix(xgboost_layer_output_test))
+            xgb_score = accuracy_score(np.argmax(t_test, axis=1), np.argmax(xgb_predict, axis=1))
+            accuracy_scores[i, :] = [test_value, xgb_score]
+        if test_variable == "n_boosts":
+            xgb_model = xgboost_model(xgboost_layer_output_train, np.argmax(t_train, axis=1), xgboost_layer_output_test, np.argmax(t_test, axis=1), n_boosts=test_value)
+            xgb_predict = xgb_model.predict(xgb.DMatrix(xgboost_layer_output_test))
+            xgb_score = accuracy_score(np.argmax(t_test, axis=1), np.argmax(xgb_predict, axis=1))
+            accuracy_scores[i, :] = [test_value, xgb_score]
+        if test_variable == "xgb_lambda":
+            xgb_model = xgboost_model(xgboost_layer_output_train, np.argmax(t_train, axis=1), xgboost_layer_output_test, np.argmax(t_test, axis=1), l2_lambda=test_value)
+            xgb_predict = xgb_model.predict(xgb.DMatrix(xgboost_layer_output_test))
+            xgb_score = accuracy_score(np.argmax(t_test, axis=1), np.argmax(xgb_predict, axis=1))
+            accuracy_scores[i, :] = [test_value, xgb_score]
+        if test_variable == "gamma":
+            xgb_model = xgboost_model(xgboost_layer_output_train, np.argmax(t_train, axis=1), xgboost_layer_output_test, np.argmax(t_test, axis=1), gamma=test_value)
+            xgb_predict = xgb_model.predict(xgb.DMatrix(xgboost_layer_output_test))
+            xgb_score = accuracy_score(np.argmax(t_test, axis=1), np.argmax(xgb_predict, axis=1))
+            accuracy_scores[i, :] = [test_value, xgb_score]
 
-        # xgb_model = xgboost_model(xgboost_layer_output, np.argmax(t_train, axis=1), X_test_CNN, np.argmax(t_test, axis=1))
-        xgb_model = xgboost_model(xgboost_layer_output_train, np.argmax(t_train, axis=1), xgboost_layer_output_test, np.argmax(t_test, axis=1), max_depth=test_value)
-        xgb_predict = xgb_model.predict(xgb.DMatrix(xgboost_layer_output_test))
-
-        xgb_score = accuracy_score(np.argmax(t_test, axis=1), np.argmax(xgb_predict, axis=1))
-        print(f"\nXGBoost\n\tMax depth: {test_value}\n\t Accuracy: {100*xgb_score:.2f} %")
+    # Print the results in a table
+    print(f"\nCNN accuracy: {100*tf_score:.2f}\n")
+    print(f"\n{test_variable}\t|\tAccuracy\t|\tRelative gain")
+    print("-----------------------------------------------")
+    for i, test_value in enumerate(test_params[test_variable]):
+        print(f"\t{test_value}\t|\t{100*accuracy_scores[i, 1]:.2f}%\t|\t{100*(accuracy_scores[i, 1] - tf_score)/tf_score:.2f}%")
 
 def main():
     """
@@ -511,7 +563,6 @@ def main():
     xgboost_layer_output_train = xgboost_layer_model.predict(x_train)
     xgboost_layer_output_test = xgboost_layer_model.predict(x_test)
 
-    # xgb_model = xgboost_model(xgboost_layer_output, np.argmax(t_train, axis=1), X_test_CNN, np.argmax(t_test, axis=1))
     xgb_model = xgboost_model(xgboost_layer_output_train, np.argmax(t_train, axis=1), xgboost_layer_output_test, np.argmax(t_test, axis=1))
     xgb_predict = xgb_model.predict(xgb.DMatrix(xgboost_layer_output_test))
 
@@ -564,7 +615,7 @@ if __name__ == "__main__":
     n_epochs = 50
     batch_size = 64
     target_num_images = 1000  # Set your target number of images per category
-    xgboost_layer_list = ["dense_1", "dense_2", "output"]
+    xgboost_layer_list = ["flatten_1", "dense_1", "dense_2", "output"]
 
     labels = ["angry", "disgust", "fear", "happy", "neutral", "sad", "surprise"]
     n_classes = len(labels)
@@ -575,5 +626,7 @@ if __name__ == "__main__":
 
     # plot_dataset_balance(t_train)
     # grid_search_eta_lambda(n_epochs)
-    plot_CNN_layer_params_scores(x_train, t_train, x_test, t_test, test_variable="kernel_size", n_epochs=n_epochs, batch_size=batch_size, eta=learning_rate, l2_lambda=l2_lambda)
-    # main()
+    # plot_CNN_layer_params_scores(x_train, t_train, x_test, t_test, test_variable="kernel_size", n_epochs=n_epochs, batch_size=batch_size, eta=learning_rate, l2_lambda=l2_lambda)
+    # for test_variable in ["max_depth", "xgb_eta", "n_boosts", "xgb_lambda", "gamma"]:
+        # XGBoost_parameter_tuning(x_train, t_train, x_test, t_test, test_variable="max_depth", n_epochs=n_epochs, batch_size=batch_size, eta=learning_rate, l2_lambda=l2_lambda)
+    main()
