@@ -46,7 +46,7 @@ by Alessia Sanfelici, Andreas Alstad, Carmen Ditscheid and Federico Santona
     - complete file list where it says ADD
     - Doc strings on functions and files
     - Confusion matrix
-    - finish report
+    - write conclusion
     - proof read report (see checklist above)
     DONE:
     - Filter sizes
