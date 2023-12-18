@@ -1,7 +1,8 @@
 import os
+import sys
 import zipfile
+import numpy as np
 from tensorflow import keras as tfk
-from CNN import *
 import matplotlib.pyplot as plt
 import tensorflow as tf
 from tensorflow.keras import regularizers
@@ -122,6 +123,20 @@ plt.show()
 # CNN with different number of layers
 
 def different_layers(num_classes, batch_size_gd, l2_lambda, n_epochs, dropout):
+    """
+    Creates and trains multiple models with 1, 2 and 3 number of convolution-pooling-layer pairs.
+    
+    Args:
+        num_classes (int): Number of classes in the output layer.
+        batch_size_gd (int): Batch size for gradient descent.
+        l2_lambda (float): Lambda value for L2 regularization.
+        n_epochs (int): Number of epochs for training.
+        dropout (str): Whether to apply dropout or not. Should be either "True" or "False".
+    
+    Returns:
+        list: List of training histories for each model.
+    """
+
     histories = []
     for i in range(3):
         model = Sequential()

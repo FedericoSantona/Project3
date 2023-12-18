@@ -9,7 +9,6 @@ from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 import xgboost as xgb
 from sklearn.metrics import accuracy_score
-from sklearn.preprocessing import OneHotEncoder
 import cv2      # Only for simple rescaling of images
 
 os.environ["PATH"] += os.pathsep + 'G:/Programmer/Graphviz/bin/' # For visualizing the XGBoost trees. Change this to your Graphviz bin folder.
@@ -20,20 +19,22 @@ def xgboost_model(x_train, t_train, x_test, t_test, max_depth=8, eta=0.2, num_cl
     Trains an XGBoost model using the given training data and parameters.
 
     Parameters:
-    - x_train: The training data features.
-    - t_train: The training data labels.
-    - x_test: The test data features.
-    - t_test: The test data labels.
-    - max_depth: The maximum depth of each tree in the XGBoost model. Default is 10.
-    - eta: The learning rate of the XGBoost model. Default is 0.3.
-    - num_class: The number of classes in the classification problem. Default is 7.
-    - n_boosts: The number of boosting rounds. Default is 20.
+    - x_train (numpy.ndarray): The training input data.
+    - t_train (numpy.ndarray): The training target data.
+    - x_test (numpy.ndarray): The test input data.
+    - t_test (numpy.ndarray): The test target data.
+    - max_depth (int): The maximum depth of each tree in the XGBoost model. Default is 8.
+    - eta (float): The learning rate of the XGBoost model. Default is 0.2.
+    - num_class (int): The number of classes in the target data. Default is 7.
+    - n_boosts (int): The number of boosting rounds. Default is 20.
+    - gamma (float): The minimum loss reduction required to make a further partition on a leaf node of the tree. Default is 0.0.
+    - l2_lambda (float): The L2 regularization term on weights. Default is 0.0001.
+    - seed (int): The random seed for reproducibility. Default is 42.
 
     Returns:
-    - model: The trained XGBoost model.
+    - model (xgboost.Booster object): The trained XGBoost model.
     """
-
-
+    
     # Convert the data to DMatrix format
     d_train = xgb.DMatrix(x_train, label=t_train)
     d_test = xgb.DMatrix(x_test, label=t_test)
@@ -70,24 +71,51 @@ def tensorflow_model(
         enable_padding: str = "kernel",
         save_results = False, summary = False, seed = 42):
     """
-    Trains a convolutional neural network (CNN) model using TensorFlow.
+    Create and train a TensorFlow CNN model.
 
     Parameters:
-    - x_train (numpy.ndarray): Training data input.
-    - t_train (numpy.ndarray): Training data target.
-    - x_test (numpy.ndarray): Testing data input.
-    - t_test (numpy.ndarray): Testing data target.
+    - x_train (numpy.ndarray): Training data features.
+    - t_train (numpy.ndarray): Training data labels.
+    - x_test (numpy.ndarray): Testing data features.
+    - t_test (numpy.ndarray): Testing data labels.
     - batch_size (int): Number of samples per gradient update. Default is 64.
     - epochs (int): Number of epochs to train the model. Default is 100.
     - eta (float): Learning rate for the optimizer. Default is 0.001.
     - l2_lambda (float): L2 regularization lambda value. Default is 0.0001.
+    - n_filters (int): Number of filters in the convolutional layers. Default is 32.
+    - kernel_size (tuple): Size of the convolutional kernel. Default is (3, 3).
+    - pool_size (tuple): Size of the max pooling window. Default is (2, 2).
+    - strides (tuple): Strides of the convolutional and pooling layers. Default is (1, 1).
+    - dropout (float): Dropout rate for the dropout layer. Default is 0.3.
+    - fc_neurons_1 (int): Number of neurons in the first fully connected layer. Default is 64.
+    - fc_neurons_2 (int): Number of neurons in the second fully connected layer. Default is 7.
+    - enable_zero_padding (bool): Whether to enable zero padding. Default is False.
+    - enable_padding (str): Type of padding to use. Can be "kernel" or "pool". Default is "kernel".
     - save_results (bool): Whether to save the trained model. Default is False.
     - summary (bool): Whether to print the model summary. Default is False.
+    - seed (int): Random seed for reproducibility. Default is 42.
 
     Returns:
-    - model (tensorflow.python.keras.engine.sequential.Sequential): Trained CNN model.
+    - model (tensorflow.python.keras.engine.sequential.Sequential): The trained CNN model.
     - history (tensorflow.python.keras.callbacks.History): Training history.
+
     """
+    # Function code here...
+def tensorflow_model(
+        x_train, t_train, x_test, t_test, 
+        batch_size=64, epochs=100, 
+        eta = 0.001, l2_lambda = 0.0001,
+        n_filters: int = 32,
+        kernel_size: tuple = (3, 3),
+        pool_size: tuple = (2, 2),
+        strides: tuple = (1, 1),
+        dropout: float = 0.3,
+        fc_neurons_1: int = 64,
+        fc_neurons_2: int = 7,
+        enable_zero_padding: bool = False,
+        enable_padding: str = "kernel",
+        save_results = False, summary = False, seed = 42):
+    
 
     # Set the seed
     tfk.utils.set_random_seed(seed)
@@ -358,7 +386,7 @@ def plot_dataset_balance(labels):
     plt.xticks(categories)
     plt.show()
 
-def plot_CNN_layer_params_scores(x_train, t_train, x_test, t_test, test_variable, n_epochs = 100, batch_size = 128, eta = 0.001, l2_lambda = 0.0001):
+def plot_CNN_layer_params_scores(x_train, t_train, x_test, t_test, test_variable, n_epochs = 100, batch_size = 64, eta = 0.001, l2_lambda = 0.0001):
     """
     Plots the accuracy and loss of a CNN model for different values of a specified parameter used by the model's layers.
     NOTE: This function is only for testing the different parameters of the CNN model. It is not used in the final model.
@@ -370,8 +398,8 @@ def plot_CNN_layer_params_scores(x_train, t_train, x_test, t_test, test_variable
     - t_test (numpy.ndarray): Testing labels.
     - test_variable (str): The variable to be tested. Possible values: 'filters', 'kernel_size', 'pool_size', 'strides', 'dropout', 'fc_neurons_1', 'fc_neurons_2'.
     - n_epochs (int): Number of epochs for training the model. Default is 100.
-    - batch_size (int): Batch size for training the model. Default is 128.
-    - eta (float): Learning rate for training the model. Default is 0.0001.
+    - batch_size (int): Batch size for training the model. Default is 64.
+    - eta (float): Learning rate for training the model. Default is 0.001.
     - l2_lambda (float): L2 regularization lambda for training the model. Default is 0.0001.
 
     Returns:
@@ -545,7 +573,25 @@ def XGBoost_parameter_tuning(x_train, t_train, x_test, t_test, test_variable,
         print(f"\t{test_value}\t|\t{100*accuracy_scores[i, 1]:.2f}%\t|\t{100*(accuracy_scores[i, 1] - tf_score)/tf_score:.2f}%")
 
 def speed_test_CNN_XGBoost(x_train, t_train, x_test, t_test, intermediate_layer, n_epochs=100, batch_size=64, eta=0.001, l2_lambda=0.0001):
-    
+    """
+    Perform a simple speed test comparing the execution time of the predictions from a CNN model and an XGBoost model.
+    The XGBoost model is trained using the output of the specified layer of the CNN model.
+    Each time measurement is executed around the .predict() call of each model.
+
+    Args:
+        x_train (numpy.ndarray): Training data input.
+        t_train (numpy.ndarray): Training data target.
+        x_test (numpy.ndarray): Test data input.
+        t_test (numpy.ndarray): Test data target.
+        intermediate_layer (str): Name of the intermediate layer in the TensorFlow model.
+        n_epochs (int, optional): Number of epochs for training the TensorFlow model. Defaults to 100.
+        batch_size (int, optional): Batch size for training the TensorFlow model. Defaults to 64.
+        eta (float, optional): Learning rate for training the TensorFlow model. Defaults to 0.001.
+        l2_lambda (float, optional): L2 regularization lambda for training the TensorFlow model. Defaults to 0.0001.
+
+    Returns:
+        None
+    """
 
     # Initialize the TensorFlow model
     tf_model, _ = tensorflow_model(x_train, t_train, x_test, t_test, summary=False, epochs=n_epochs, batch_size=batch_size, eta=eta, l2_lambda=l2_lambda)
