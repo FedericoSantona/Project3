@@ -41,7 +41,7 @@ by Alessia Sanfelici, Andreas Alstad, Carmen Ditscheid and Federico Santona
     NEXT:
     - complete file list where it says ADD
     - Doc strings on functions and files
-    - write conclusion
+    - conclusion: comparison to research paper
     - proof read report (see checklist above)
     DONE:
      - Confusion matrix
