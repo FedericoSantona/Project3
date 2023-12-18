@@ -1,4 +1,5 @@
 import os
+import time
 import numpy as np
 from collections import defaultdict
 import matplotlib.pyplot as plt
@@ -11,8 +12,10 @@ from sklearn.metrics import accuracy_score
 from sklearn.preprocessing import OneHotEncoder
 import cv2      # Only for simple rescaling of images
 
+os.environ["PATH"] += os.pathsep + 'G:/Programmer/Graphviz/bin/' # For visualizing the XGBoost trees. Change this to your Graphviz bin folder.
+
 # Functions
-def xgboost_model(x_train, t_train, x_test, t_test, max_depth=10, eta=0.3, num_class=7, n_boosts=20, gamma=0.0, l2_lambda=0.0001, seed=42):
+def xgboost_model(x_train, t_train, x_test, t_test, max_depth=8, eta=0.2, num_class=7, n_boosts=20, gamma=0.0, l2_lambda=0.0001, seed=42):
     """
     Trains an XGBoost model using the given training data and parameters.
 
@@ -498,7 +501,8 @@ def XGBoost_parameter_tuning(x_train, t_train, x_test, t_test, test_variable,
         'xgb_eta': [0.05, 0.1, 0.15, 0.2],              # Learning rate
         'n_boosts': [10, 20, 30, 40],                   # Number of boosting rounds
         'xgb_lambda': [0.0001, 0.001, 0.01, 0.1, 1.0],  # Regularization term, analogous to L2 regularization
-        'gamma': [0.0, 0.1, 0.2, 0.3, 0.4, 0.5]         # Minimum loss reduction required to make a further partition on a leaf node of the tree
+        'gamma': [0.0, 0.1, 0.2, 0.3, 0.4, 0.5],        # Minimum loss reduction required to make a further partition on a leaf node of the tree
+        'layer': ['flatten_1', 'dense_1', 'dense_2', 'output']
     }
 
     # Prepare scores for plotting
@@ -539,6 +543,37 @@ def XGBoost_parameter_tuning(x_train, t_train, x_test, t_test, test_variable,
     print("-----------------------------------------------")
     for i, test_value in enumerate(test_params[test_variable]):
         print(f"\t{test_value}\t|\t{100*accuracy_scores[i, 1]:.2f}%\t|\t{100*(accuracy_scores[i, 1] - tf_score)/tf_score:.2f}%")
+
+def speed_test_CNN_XGBoost(x_train, t_train, x_test, t_test, intermediate_layer, n_epochs=100, batch_size=64, eta=0.001, l2_lambda=0.0001):
+    
+
+    # Initialize the TensorFlow model
+    tf_model, _ = tensorflow_model(x_train, t_train, x_test, t_test, summary=False, epochs=n_epochs, batch_size=batch_size, eta=eta, l2_lambda=l2_lambda)
+
+    # Initialize the xgboost model with the output of the specified layer of the TensorFlow model
+    xgboost_layer_model = tfk.models.Model(inputs=tf_model.input, 
+                                           outputs=tf_model.get_layer(intermediate_layer).output)
+    xgboost_layer_output_train = xgboost_layer_model.predict(x_train)
+    xgboost_layer_output_test = xgboost_layer_model.predict(x_test)
+
+    # Initialize the xgboost model
+    xgb_model = xgboost_model(xgboost_layer_output_train, np.argmax(t_train, axis=1), xgboost_layer_output_test, np.argmax(t_test, axis=1))
+
+    # Time the CNN model
+    start_time = time.time()
+    tf_model.predict(x_test)
+    end_time = time.time()
+    tf_time = end_time - start_time
+
+    # Time the XGBoost model
+    start_time = time.time()
+    xgb_model.predict(xgb.DMatrix(xgboost_layer_output_test))
+    end_time = time.time()
+    xgb_time = end_time - start_time
+
+    # Print the results
+    print(f"\nCNN time: {tf_time:.2f} s")
+    print(f"XGBoost time: {xgb_time:.2f} s")
 
 def main():
     """
@@ -607,6 +642,9 @@ def main():
     plt.legend(loc='lower right')
     plt.show()
 
+    # Print XGBoost tree (Needs graphviz to be installed and added to PATH)
+    xgb.plot_tree(xgb_model, num_trees=0)
+
 if __name__ == "__main__":
     # Parameters and variables
     seed = 42
@@ -629,4 +667,5 @@ if __name__ == "__main__":
     # plot_CNN_layer_params_scores(x_train, t_train, x_test, t_test, test_variable="kernel_size", n_epochs=n_epochs, batch_size=batch_size, eta=learning_rate, l2_lambda=l2_lambda)
     # for test_variable in ["max_depth", "xgb_eta", "n_boosts", "xgb_lambda", "gamma"]:
         # XGBoost_parameter_tuning(x_train, t_train, x_test, t_test, test_variable="max_depth", n_epochs=n_epochs, batch_size=batch_size, eta=learning_rate, l2_lambda=l2_lambda)
-    main()
+    speed_test_CNN_XGBoost(x_train, t_train, x_test, t_test, intermediate_layer="dense_1", n_epochs=n_epochs, batch_size=batch_size, eta=learning_rate, l2_lambda=l2_lambda)
+    # main()
