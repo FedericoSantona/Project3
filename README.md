@@ -7,7 +7,7 @@ by Alessia Sanfelici, Andreas Alstad, Carmen Ditscheid and Federico Santona
     but with XGBoost which takes the output of the dense layers of the CNN as its input.
     It also trains a pure XGBoost model without CNN for comparison.
 - plots.ipynb: plotting number of images per class and confusion matrix
-- number_of_layers.py: ADD
+- number_of_layers.py: search and plot for CNN with different number of layers
   
 ### Grid search
 - CNN_3D_gridsearch.py: script for performing grid search
@@ -15,7 +15,7 @@ by Alessia Sanfelici, Andreas Alstad, Carmen Ditscheid and Federico Santona
 - plot_gridsearch.ipynb: plots results of the grid search
   
 ### best_model.pth
-- ADD
+- file containing the best model from the CNN
 
 ### Previous versions/ attempts at constructing a CNN
 - CNN.py:
@@ -27,28 +27,8 @@ by Alessia Sanfelici, Andreas Alstad, Carmen Ditscheid and Federico Santona
         - FlattenLayer.py
         - Pooling2DLayer.py
         - Schedulers.py
-- emotions.py: ADD
-- emotionsTensorFlow.ipynb: ADD
-- emotionsTensorFlow.py: ADD
-- emotionsTensorFlow_augmented.py: ADD
-- view_image_through_CNN_layers.py: ADD
-
-### remember in report:
-    - long figure captions
-    - check website citations for when they have been accessed
-
-### TODO:
-    NEXT:
-    - complete file list where it says ADD
-    - Doc strings on functions and files
-    - conclusion: comparison to research paper
-    - proof read report (see checklist above)
-    DONE:
-     - Confusion matrix
-    - Filter sizes
-    - Pooling layer sizes, Striding?
-    - ROC/AUC (maybe for underrepresented class)
-    - check results of grid search
-    - Number of convolutional layers
-    - data augmentation (abandoned)
-    - Grid search: batches, learning rate and lambda
+- emotions.py
+- emotionsTensorFlow.ipynb
+- emotionsTensorFlow.py
+- emotionsTensorFlow_augmented.py
+- view_image_through_CNN_layers.py
